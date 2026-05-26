@@ -1,0 +1,40 @@
+# Node dependencies
+**/node_modules/
+moneyassist-frontend/node_modules/
+
+# Composer dependencies
+**/vendor/
+moneyassist-backend/vendor/
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+moneyassist-backend/.env
+moneyassist-frontend/.env
+
+# IDEs and editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# SQLite database
+**/database/*.sqlite
+
+# Backend storage
+**/storage/*.key
+**/storage/framework/cache/data/*
+**/storage/framework/sessions/*
+**/storage/framework/testing/*
+**/storage/framework/views/*
+**/storage/logs/*
+
+# Frontend build output
+**/dist/
+**/build/
