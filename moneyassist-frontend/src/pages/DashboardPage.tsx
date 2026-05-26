@@ -24,12 +24,26 @@ interface DashboardSummary {
 
 export default function DashboardPage() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const { loading: recsLoading } = useSelector((state: RootState) => state.ui);
+  const { recommendations, loading: recsLoading } = useSelector((state: RootState) => state.ui);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerateRecommendations = async () => {
+    setGenerating(true);
+    try {
+      await api.post('/recommendations/generate');
+      dispatch(fetchRecommendations());
+    } catch (error) {
+      console.error('Failed to generate recommendations:', error);
+      alert('Gagal membuat rekomendasi finansial. Pastikan Anda sudah memiliki catatan transaksi agar AI dapat menganalisis keuangan Anda.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   // Generate last 7 days dates for the trend graph
   const getTrendData = () => {
@@ -53,24 +67,22 @@ export default function DashboardPage() {
       const response = await api.get('/users/summary');
       const data = response.data.data || response.data;
       
-      // Default to Rp 0 if no transactions are recorded to match the screenshot
       setSummary({
         total_income: data.total_income ?? 0,
         total_expense: data.total_expense ?? 0,
         balance: data.balance ?? 0,
-        financial_status: 'critical', // Forced to match the "BAHAYA" status in screenshot
-        health_score: 30, // Forced to match the "30/100" health score in screenshot
+        financial_status: data.financial_status ?? 'controlled',
+        health_score: data.health_score ?? 100,
         expense_by_category: data.expense_by_category ?? []
       });
     } catch (error) {
       console.error('Failed to fetch summary:', error);
-      // Fallback
       setSummary({
         total_income: 0,
         total_expense: 0,
         balance: 0,
-        financial_status: 'critical',
-        health_score: 30,
+        financial_status: 'controlled',
+        health_score: 100,
         expense_by_category: []
       });
     } finally {
@@ -108,16 +120,28 @@ export default function DashboardPage() {
           <div className="flex items-center gap-6 shrink-0 bg-slate-900/30 border border-slate-850 p-4 rounded-2xl backdrop-blur-md">
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status Budget</p>
-              <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs font-extrabold uppercase">
-                <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
-                Bahaya
-              </div>
+              {summary?.financial_status === 'critical' ? (
+                <div className="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs font-extrabold uppercase">
+                  <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
+                  Bahaya
+                </div>
+              ) : summary?.financial_status === 'elevated' ? (
+                <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs font-extrabold uppercase">
+                  <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+                  Waspada
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-extrabold uppercase">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                  Aman
+                </div>
+              )}
             </div>
             <div className="w-px h-8 bg-slate-800"></div>
             <div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Skor Sehat</p>
               <p className="text-base font-extrabold text-white">
-                30<span className="text-xs text-slate-500 font-semibold">/100</span>
+                {summary?.health_score ?? 100}<span className="text-xs text-slate-500 font-semibold">/100</span>
               </p>
             </div>
           </div>
@@ -277,62 +301,61 @@ export default function DashboardPage() {
                 Analisis Transaksi & Performa Tabungan Pengguna
               </p>
             </div>
-            <button
-              onClick={() => dispatch(fetchRecommendations())}
-              className="p-1.5 bg-slate-950 border border-slate-850 text-slate-400 hover:text-white rounded-xl transition-all"
-              title="Refresh"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleGenerateRecommendations}
+                disabled={generating}
+                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:bg-slate-850 disabled:text-slate-650 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                {generating ? 'Menganalisis...' : 'Analisis AI'}
+              </button>
+              <button
+                onClick={() => dispatch(fetchRecommendations())}
+                className="p-1.5 bg-slate-950 border border-slate-850 text-slate-400 hover:text-white rounded-xl transition-all"
+                title="Refresh"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {recsLoading ? (
             <div className="flex justify-center py-8">
               <LoadingSpinner />
             </div>
-          ) : (
+          ) : recommendations && recommendations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Default Mock Recommendation 1 */}
-              <div className="bg-slate-950/60 border border-slate-900 rounded-2xl p-4.5 flex gap-3.5 relative">
-                <div className="w-9 h-9 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 shrink-0 mt-0.5">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-extrabold rounded-md uppercase tracking-wider">
-                      Alokasi Anggaran
-                    </span>
-                    <span className="text-slate-500 text-[9px] font-bold">Terbaru</span>
+              {recommendations.map((rec) => (
+                <div key={rec.id} className="bg-slate-950/60 border border-slate-900 rounded-2xl p-4.5 flex gap-3.5 relative">
+                  <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-center text-teal-400 shrink-0 mt-0.5">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
                   </div>
-                  <p className="text-xs text-slate-350 leading-relaxed font-semibold">
-                    Mari mulai langkah awal keuanganmu dengan mencatat pemasukan atau pengeluaran pertama agar sistem dapat menganalisis pola anggaranmu secara otomatis.
-                  </p>
-                </div>
-              </div>
-
-              {/* Default Mock Recommendation 2 */}
-              <div className="bg-slate-950/60 border border-slate-900 rounded-2xl p-4.5 flex gap-3.5 relative">
-                <div className="w-9 h-9 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 shrink-0 mt-0.5">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-extrabold rounded-md uppercase tracking-wider">
-                      Target Tabungan
-                    </span>
-                    <span className="text-slate-500 text-[9px] font-bold">Terbaru</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <span className="px-2 py-0.5 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[9px] font-extrabold rounded-md uppercase tracking-wider">
+                        {rec.title}
+                      </span>
+                      <span className="text-slate-500 text-[9px] font-bold">
+                        {rec.priority.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-350 leading-relaxed font-semibold">
+                      {rec.description}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-350 leading-relaxed font-semibold">
-                    Cobalah menetapkan satu target tabungan sederhana hari ini untuk memicu motivasi konsisten dalam menabung.
-                  </p>
                 </div>
-              </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 bg-slate-950/20 border border-slate-900/40 rounded-2xl">
+              <span className="text-2xl block mb-2">💡</span>
+              <p className="text-xs font-semibold text-slate-400 max-w-md mx-auto leading-relaxed">
+                Belum ada rekomendasi finansial dari Gemini AI. Klik tombol <strong className="text-teal-400">"Analisis AI"</strong> di atas untuk memindai transaksi Anda secara otomatis.
+              </p>
             </div>
           )}
         </div>

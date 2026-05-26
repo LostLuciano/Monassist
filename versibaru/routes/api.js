@@ -237,6 +237,69 @@ router.get('/auth/me', auth, (req, res) => {
   res.json(req.user);
 });
 
+// GET /users/summary
+router.get('/users/summary', auth, async (req, res) => {
+  try {
+    const incomeResult = await db.query("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'income'", [req.user.id]);
+    const expenseResult = await db.query("SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'expense'", [req.user.id]);
+    
+    const totalIncome = parseFloat(incomeResult.rows[0].total);
+    const totalExpense = parseFloat(expenseResult.rows[0].total);
+    const balance = totalIncome - totalExpense;
+
+    // Get expense by category
+    const catResult = await db.query(
+      `SELECT c.name as category, COALESCE(SUM(t.amount), 0) as amount 
+       FROM transactions t 
+       JOIN categories c ON t.category_id = c.id 
+       WHERE t.user_id = $1 AND t.type = 'expense' 
+       GROUP BY c.name`,
+      [req.user.id]
+    );
+
+    const expenseByCategory = catResult.rows.map(row => {
+      const amount = parseFloat(row.amount);
+      return {
+        category: row.category,
+        amount: amount,
+        percentage: totalExpense > 0 ? parseFloat(((amount / totalExpense) * 100).toFixed(2)) : 0
+      };
+    });
+
+    // Calculate status and health score dynamically
+    let financialStatus = 'controlled';
+    let healthScore = 80;
+
+    if (totalIncome === 0 && totalExpense === 0) {
+      financialStatus = 'controlled';
+      healthScore = 100;
+    } else if (totalExpense > totalIncome) {
+      financialStatus = 'critical';
+      healthScore = Math.max(10, Math.round(100 - (totalExpense / (totalIncome || 1) * 50)));
+    } else if (totalExpense > totalIncome * 0.7) {
+      financialStatus = 'elevated';
+      healthScore = Math.max(30, Math.round(100 - (totalExpense / (totalIncome || 1) * 70)));
+    } else {
+      financialStatus = 'controlled';
+      healthScore = Math.min(100, Math.round(100 - (totalExpense / (totalIncome || 1) * 30)));
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total_income: totalIncome,
+        total_expense: totalExpense,
+        balance,
+        financial_status: financialStatus,
+        health_score: healthScore,
+        expense_by_category: expenseByCategory
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // PUT /auth/profile
 router.put('/auth/profile', auth, async (req, res) => {
   try {

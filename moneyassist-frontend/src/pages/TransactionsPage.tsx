@@ -78,19 +78,8 @@ export default function TransactionsPage() {
         transaction_date: result.transaction_date ? result.transaction_date.split('T')[0] : new Date().toISOString().split('T')[0]
       });
     } catch (error) {
-      console.error('Receipt scan failed, using fallback parser:', error);
-      // Fallback local parsing mock
-      setTimeout(() => {
-        setFormData({
-          type: 'expense',
-          category_id: '1',
-          amount: '58500',
-          description: 'Makan Siang (AI Scan)',
-          transaction_date: new Date().toISOString().split('T')[0]
-        });
-        setIsScanning(false);
-      }, 1500);
-      return;
+      console.error('Receipt scan failed:', error);
+      alert('Gagal memindai struk belanja dengan AI. Pastikan API Key di backend Anda sudah terkonfigurasi dengan benar.');
     } finally {
       setIsScanning(false);
     }

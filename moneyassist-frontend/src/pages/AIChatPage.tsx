@@ -78,36 +78,16 @@ const AIChatPage: React.FC = () => {
       setMessages(prev => [...prev, aiMsg]);
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Fallback mock answer if API returns error
-      setTimeout(() => {
-        const fallbackResponse = getMockResponse(text.toLowerCase());
-        const aiMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          message: fallbackResponse,
-          sender: 'ai',
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, aiMsg]);
-      }, 1000);
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        message: 'Maaf, saya tidak dapat menghubungi server asisten keuangan AI saat ini. Silakan periksa koneksi internet Anda atau coba lagi beberapa saat lagi.',
+        sender: 'ai',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, aiMsg]);
     } finally {
       setIsTyping(false);
     }
-  };
-
-  const getMockResponse = (query: string): string => {
-    if (query.includes('kondisi') || query.includes('keuangan') || query.includes('status') || query.includes('bahaya')) {
-      return `Berdasarkan analisis transaksi Anda, status budget Anda saat ini dalam kondisi BAHAYA dengan skor kesehatan keuangan 30/100. Disarankan untuk membatasi pengeluaran non-primer dan fokus mengisi target tabungan.`;
-    }
-    if (query.includes('tabungan') || query.includes('target') || query.includes('goal')) {
-      return `Target tabungan Anda saat ini masih 0% tercapai. Anda bisa memulai dengan menyisihkan Rp 100.000 setiap minggu untuk membangun kebiasaan menabung yang konsisten.`;
-    }
-    if (query.includes('boros') || query.includes('hemat') || query.includes('tips')) {
-      return `Tips hemat minggu ini:
-1. Kurangi biaya makan di luar (bisa menghemat hingga 20%).
-2. Evaluasi langganan bulanan yang jarang digunakan.
-3. Catat setiap transaksi secara real-time agar anggaran tetap terkontrol.`;
-    }
-    return `Pertanyaan menarik, Kak! Saya sarankan untuk memprioritaskan pencatatan transaksi harian Anda agar saya bisa memberikan saran alokasi budget yang lebih tepat dan akurat.`;
   };
 
   const handleQuickQuestion = (question: string) => {
