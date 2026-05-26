@@ -64,43 +64,27 @@ class ApiService {
           } else if (url.includes('/transactions/statistics')) {
             mockData = {
               data: {
-                totalIncome: 17500000,
-                totalExpense: 2350000,
-                netSavings: 15150000,
-                efficiencyScore: 86
+                totalIncome: 0,
+                totalExpense: 0,
+                netSavings: 0,
+                efficiencyScore: 0
               }
             };
           } else if (url.includes('/transactions/category-breakdown')) {
             mockData = {
-              data: [
-                { category: 'Food', amount: 350000, percentage: 15 },
-                { category: 'Utilities', amount: 800000, percentage: 34 },
-                { category: 'Rent', amount: 1200000, percentage: 51 }
-              ]
+              data: []
             };
           } else if (url.includes('/transactions')) {
             mockData = {
-              data: [
-                { id: 1, type: 'income', amount: 15000000, category: 'Salary', description: 'Gaji Bulanan', date: '2026-05-25', notes: 'Gaji utama' },
-                { id: 2, type: 'expense', amount: 350000, category: 'Food', description: 'Makan Malam Bersama Keluarga', date: '2026-05-25', notes: '' },
-                { id: 3, type: 'expense', amount: 800000, category: 'Utilities', description: 'Tagihan Listrik & Internet', date: '2026-05-24', notes: '' },
-                { id: 4, type: 'expense', amount: 1200000, category: 'Rent', description: 'Kontrakan Rumah', date: '2026-05-01', notes: '' },
-                { id: 5, type: 'income', amount: 2500000, category: 'Investment', description: 'Dividen Saham', date: '2026-05-20', notes: '' }
-              ]
+              data: []
             };
           } else if (url.includes('/goals')) {
             mockData = {
-              data: [
-                { id: 1, name: 'Beli Laptop Baru', target_amount: 20000000, current_amount: 15000000, deadline: '2026-12-31', category: 'Gadget', status: 'active' },
-                { id: 2, name: 'Dana Darurat', target_amount: 50000000, current_amount: 20000000, deadline: '2027-06-30', category: 'Savings', status: 'active' }
-              ]
+              data: []
             };
           } else if (url.includes('/recommendations')) {
             mockData = {
-              data: [
-                { id: 1, title: 'Kurangi Biaya Hiburan', description: 'Anda menghabiskan 25% lebih banyak untuk kategori hiburan bulan ini dibandingkan bulan lalu.', type: 'saving', priority: 'high', potential_savings: 500000 },
-                { id: 2, title: 'Maksimalkan Tabungan Bunga Tinggi', description: 'Pindahkan sebagian dana darurat Anda ke rekening dengan imbal hasil tinggi.', type: 'investment', priority: 'medium', potential_savings: 200000 }
-              ]
+              data: []
             };
           } else if (url.includes('/chat/send')) {
             mockData = {
