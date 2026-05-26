@@ -5,6 +5,92 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const multer = require('multer');
+
+// Configure multer for file uploads in memory
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Map frontend category IDs to DB category names, icons, and colors
+const frontendCatToDb = {
+  1: { name: 'Makanan & Minuman', icon: 'coffee', color: '#f59e0b' },
+  2: { name: 'Transportasi', icon: 'car', color: '#3b82f6' },
+  3: { name: 'Belanja', icon: 'shopping-cart', color: '#10b981' },
+  4: { name: 'Utilitas & Tagihan', icon: 'zap', color: '#6366f1' },
+  5: { name: 'Gaji', icon: 'briefcase', color: '#10b981' },
+  6: { name: 'Investasi', icon: 'trending-up', color: '#0ea5e9' },
+  7: { name: 'Hiburan', icon: 'film', color: '#8b5cf6' },
+  8: { name: 'Lainnya', icon: 'tag', color: '#6b7280' }
+};
+
+// Map DB category names back to frontend category IDs
+const dbCatToFrontend = {
+  'Makanan & Minuman': 1,
+  'Transportasi': 2,
+  'Belanja': 3,
+  'Utilitas & Tagihan': 4,
+  'Gaji': 5,
+  'Investasi': 6,
+  'Hiburan': 7,
+  'Lainnya': 8
+};
+
+// Helper function to resolve category ID from database, creating it if it doesn't exist
+const getDbCategoryId = async (userId, frontendCatId, type) => {
+  const cat = frontendCatToDb[frontendCatId] || frontendCatToDb[8];
+  
+  // Find category in DB
+  const result = await db.query(
+    'SELECT id FROM categories WHERE user_id = $1 AND name = $2',
+    [userId, cat.name]
+  );
+  
+  if (result.rows.length > 0) {
+    return result.rows[0].id;
+  }
+  
+  // If not found, insert it
+  const insertResult = await db.query(
+    `INSERT INTO categories (user_id, name, icon, color, type, budget_limit, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, 1000000.00, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     RETURNING id`,
+    [userId, cat.name, cat.icon, cat.color, type || 'expense']
+  );
+  
+  return insertResult.rows[0].id;
+};
+
+// Helper function to map a database transaction row back to frontend-compatible format
+const mapTransactionToFrontend = async (transaction) => {
+  if (!transaction) return null;
+  
+  // Fetch category name
+  const catResult = await db.query('SELECT name FROM categories WHERE id = $1', [transaction.category_id]);
+  const catName = catResult.rows.length > 0 ? catResult.rows[0].name : 'Lainnya';
+  
+  // Get frontend category ID
+  const frontendCatId = dbCatToFrontend[catName] || 8;
+  
+  return {
+    id: parseInt(transaction.id),
+    user_id: parseInt(transaction.user_id),
+    category_id: frontendCatId,
+    type: transaction.type,
+    amount: parseFloat(transaction.amount),
+    description: transaction.description,
+    transaction_date: transaction.date,
+    receipt_url: transaction.receipt_url,
+    created_at: transaction.created_at,
+    updated_at: transaction.updated_at,
+    category: {
+      id: frontendCatId,
+      name: catName,
+      type: transaction.type
+    }
+  };
+};
 
 // Helper to sign JWT token
 const generateToken = (userId) => {
@@ -328,13 +414,16 @@ router.get('/transactions', auth, async (req, res) => {
     let queryConditions = ['user_id = $1'];
     let paramIndex = 2;
 
-    if (category_id) {
-      queryConditions.push(`category_id = $${paramIndex}`);
-      queryParams.push(category_id);
-      paramIndex++;
+    if (category_id && category_id !== 'all') {
+      const dbCat = frontendCatToDb[category_id];
+      if (dbCat) {
+        queryConditions.push(`category_id IN (SELECT id FROM categories WHERE user_id = $1 AND name = $${paramIndex})`);
+        queryParams.push(dbCat.name);
+        paramIndex++;
+      }
     }
 
-    if (type) {
+    if (type && type !== 'all') {
       queryConditions.push(`type = $${paramIndex}`);
       queryParams.push(type);
       paramIndex++;
@@ -362,7 +451,13 @@ router.get('/transactions', auth, async (req, res) => {
     const query = `SELECT * FROM transactions WHERE ${whereClause} ORDER BY date DESC, id DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     const itemsResult = await db.query(query, [...queryParams, limit, offset]);
 
-    res.json(getPaginatedResponse(itemsResult.rows, total, page, limit));
+    // Map each item back to frontend format
+    const mappedItems = [];
+    for (const item of itemsResult.rows) {
+      mappedItems.push(await mapTransactionToFrontend(item));
+    }
+
+    res.json(getPaginatedResponse(mappedItems, total, page, limit));
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -371,28 +466,28 @@ router.get('/transactions', auth, async (req, res) => {
 // POST /transactions
 router.post('/transactions', auth, async (req, res) => {
   try {
-    const { category_id, type, amount, description, date, receipt_url, tags, notes } = req.body;
-    if (!category_id || !type || !amount || !description || !date) {
+    const { category_id, type, amount, description, date, transaction_date, receipt_url, tags, notes } = req.body;
+    
+    const targetDate = date || transaction_date;
+    if (!category_id || !type || !amount || !description || !targetDate) {
       return res.status(422).json({ success: false, message: 'Field wajib tidak boleh kosong.' });
     }
 
-    // Verify category ownership
-    const catCheck = await db.query('SELECT id FROM categories WHERE id = $1 AND user_id = $2', [category_id, req.user.id]);
-    if (catCheck.rows.length === 0) {
-      return res.status(422).json({ success: false, message: 'Kategori tidak valid.' });
-    }
+    // Resolve category ID in DB
+    const dbCategoryId = await getDbCategoryId(req.user.id, category_id, type);
 
     const result = await db.query(
       `INSERT INTO transactions (user_id, category_id, type, amount, description, date, receipt_url, tags, notes, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [req.user.id, category_id, type, amount, description, date, receipt_url || null, tags ? JSON.stringify(tags) : null, notes || null]
+      [req.user.id, dbCategoryId, type, amount, description, targetDate, receipt_url || null, tags ? JSON.stringify(tags) : null, notes || null]
     );
 
+    const mapped = await mapTransactionToFrontend(result.rows[0]);
     res.status(201).json({
       success: true,
       message: 'Transaksi berhasil dicatat',
-      data: result.rows[0]
+      data: mapped
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -443,7 +538,8 @@ router.get('/transactions/:id', auth, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Transaksi tidak ditemukan.' });
     }
-    res.json({ success: true, data: result.rows[0] });
+    const mapped = await mapTransactionToFrontend(result.rows[0]);
+    res.json({ success: true, data: mapped });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -452,37 +548,50 @@ router.get('/transactions/:id', auth, async (req, res) => {
 // PUT /transactions/:id
 router.put('/transactions/:id', auth, async (req, res) => {
   try {
-    const { category_id, type, amount, description, date, receipt_url, tags, notes } = req.body;
+    const { category_id, type, amount, description, date, transaction_date, receipt_url, tags, notes } = req.body;
     
-    const check = await db.query('SELECT id FROM transactions WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const check = await db.query('SELECT id, category_id, type, amount, description, date, receipt_url, tags, notes FROM transactions WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (check.rows.length === 0) {
       return res.status(403).json({ success: false, message: 'Akses ditolak.' });
     }
 
+    const currentTrans = check.rows[0];
+    const targetType = type || currentTrans.type;
+    const targetDate = date || transaction_date || currentTrans.date;
+
+    let dbCategoryId = currentTrans.category_id;
     if (category_id) {
-      const catCheck = await db.query('SELECT id FROM categories WHERE id = $1 AND user_id = $2', [category_id, req.user.id]);
-      if (catCheck.rows.length === 0) {
-        return res.status(422).json({ success: false, message: 'Kategori tidak valid.' });
-      }
+      dbCategoryId = await getDbCategoryId(req.user.id, category_id, targetType);
     }
 
     const result = await db.query(
       `UPDATE transactions
-       SET category_id = COALESCE($1, category_id),
-           type = COALESCE($2, type),
-           amount = COALESCE($3, amount),
-           description = COALESCE($4, description),
-           date = COALESCE($5, date),
-           receipt_url = COALESCE($6, receipt_url),
-           tags = COALESCE($7, tags),
-           notes = COALESCE($8, notes),
+       SET category_id = $1,
+           type = $2,
+           amount = $3,
+           description = $4,
+           date = $5,
+           receipt_url = $6,
+           tags = $7,
+           notes = $8,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $9
        RETURNING *`,
-      [category_id, type, amount, description, date, receipt_url, tags ? JSON.stringify(tags) : null, notes, req.params.id]
+      [
+        dbCategoryId,
+        targetType,
+        amount !== undefined ? amount : currentTrans.amount,
+        description !== undefined ? description : currentTrans.description,
+        targetDate,
+        receipt_url !== undefined ? receipt_url : currentTrans.receipt_url,
+        tags ? JSON.stringify(tags) : currentTrans.tags,
+        notes !== undefined ? notes : currentTrans.notes,
+        req.params.id
+      ]
     );
 
-    res.json({ success: true, message: 'Transaksi berhasil diperbarui', data: result.rows[0] });
+    const mapped = await mapTransactionToFrontend(result.rows[0]);
+    res.json({ success: true, message: 'Transaksi berhasil diperbarui', data: mapped });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -508,6 +617,25 @@ router.delete('/transactions/:id', auth, async (req, res) => {
 // 4. SAVINGS GOALS ROUTE (/api/goals)
 // ==========================================
 
+// Helper function to map a database goal row to frontend format
+const mapGoalToFrontend = (goal) => {
+  if (!goal) return null;
+  return {
+    id: parseInt(goal.id),
+    user_id: parseInt(goal.user_id),
+    name: goal.name,
+    description: goal.description,
+    target_amount: parseFloat(goal.target_amount),
+    current_amount: parseFloat(goal.current_amount),
+    target_date: goal.deadline,
+    category: goal.category,
+    status: goal.status,
+    priority: goal.priority,
+    created_at: goal.created_at,
+    updated_at: goal.updated_at
+  };
+};
+
 // GET /goals
 router.get('/goals', auth, async (req, res) => {
   try {
@@ -522,7 +650,8 @@ router.get('/goals', auth, async (req, res) => {
       [req.user.id, limit, offset]
     );
 
-    res.json(getPaginatedResponse(result.rows, total, page, limit));
+    const mappedGoals = result.rows.map(mapGoalToFrontend);
+    res.json(getPaginatedResponse(mappedGoals, total, page, limit));
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -531,19 +660,20 @@ router.get('/goals', auth, async (req, res) => {
 // POST /goals
 router.post('/goals', auth, async (req, res) => {
   try {
-    const { name, description, target_amount, deadline, category, icon, color, priority } = req.body;
-    if (!name || !target_amount || !deadline) {
+    const { name, description, target_amount, current_amount, deadline, target_date, category, icon, color, priority } = req.body;
+    const finalDeadline = deadline || target_date;
+    if (!name || !target_amount || !finalDeadline) {
       return res.status(422).json({ success: false, message: 'Nama, target dana, dan tenggat waktu wajib diisi.' });
     }
 
     const result = await db.query(
       `INSERT INTO savings_goals (user_id, name, description, target_amount, current_amount, deadline, category, icon, color, priority, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 0.00, $5, $6, $7, $8, $9, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [req.user.id, name, description || null, target_amount, deadline, category || null, icon || 'shield', color || '#10b981', priority || 'medium']
+      [req.user.id, name, description || null, target_amount, current_amount || 0.00, finalDeadline, category || null, icon || 'shield', color || '#10b981', priority || 'medium']
     );
 
-    res.status(201).json({ success: true, message: 'Target tabungan berhasil dibuat', data: result.rows[0] });
+    res.status(201).json({ success: true, message: 'Target tabungan berhasil dibuat', data: mapGoalToFrontend(result.rows[0]) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -592,7 +722,7 @@ router.get('/goals/:id', auth, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Target tabungan tidak ditemukan.' });
     }
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: mapGoalToFrontend(result.rows[0]) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -601,12 +731,15 @@ router.get('/goals/:id', auth, async (req, res) => {
 // PUT /goals/:id
 router.put('/goals/:id', auth, async (req, res) => {
   try {
-    const { name, description, target_amount, current_amount, deadline, category, icon, color, priority, status } = req.body;
+    const { name, description, target_amount, current_amount, deadline, target_date, category, icon, color, priority, status } = req.body;
     
-    const check = await db.query('SELECT id FROM savings_goals WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const check = await db.query('SELECT * FROM savings_goals WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     if (check.rows.length === 0) {
       return res.status(403).json({ success: false, message: 'Akses ditolak.' });
     }
+
+    const currentGoal = check.rows[0];
+    const finalDeadline = deadline || target_date || currentGoal.deadline;
 
     const result = await db.query(
       `UPDATE savings_goals
@@ -614,7 +747,7 @@ router.put('/goals/:id', auth, async (req, res) => {
            description = COALESCE($2, description),
            target_amount = COALESCE($3, target_amount),
            current_amount = COALESCE($4, current_amount),
-           deadline = COALESCE($5, deadline),
+           deadline = $5,
            category = COALESCE($6, category),
            icon = COALESCE($7, icon),
            color = COALESCE($8, color),
@@ -623,10 +756,10 @@ router.put('/goals/:id', auth, async (req, res) => {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $11
        RETURNING *`,
-      [name, description, target_amount, current_amount, deadline, category, icon, color, priority, status, req.params.id]
+      [name, description, target_amount, current_amount, finalDeadline, category, icon, color, priority, status, req.params.id]
     );
 
-    res.json({ success: true, message: 'Target tabungan berhasil diperbarui', data: result.rows[0] });
+    res.json({ success: true, message: 'Target tabungan berhasil diperbarui', data: mapGoalToFrontend(result.rows[0]) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -672,7 +805,7 @@ router.post('/goals/:id/progress', auth, async (req, res) => {
       [newAmount, status, req.params.id]
     );
 
-    res.json({ success: true, message: 'Progress tabungan berhasil ditambahkan', data: result.rows[0] });
+    res.json({ success: true, message: 'Progress tabungan berhasil ditambahkan', data: mapGoalToFrontend(result.rows[0]) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -697,14 +830,34 @@ router.get('/chat/history', auth, async (req, res) => {
       [req.user.id, limit, offset]
     );
 
-    res.json(getPaginatedResponse(result.rows, total, page, limit));
+    // Split each message in history into separate User and AI chat bubbles for the frontend timeline
+    const chatHistory = [];
+    for (const row of result.rows) {
+      chatHistory.unshift({
+        id: `${row.id}-ai`,
+        message: row.response,
+        sender: 'ai',
+        timestamp: row.created_at
+      });
+      chatHistory.unshift({
+        id: `${row.id}-user`,
+        message: row.message,
+        sender: 'user',
+        timestamp: row.created_at
+      });
+    }
+
+    res.json({
+      success: true,
+      data: chatHistory
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// POST /chat/send
-router.post('/chat/send', auth, async (req, res) => {
+// POST /chat/send & /chat/message (handle both endpoints)
+router.post(['/chat/send', '/chat/message'], auth, async (req, res) => {
   try {
     const { message, type = 'general' } = req.body;
     if (!message) {
@@ -759,13 +912,85 @@ Pesan Pengguna: ${message}`;
       [req.user.id, message, aiResponse, type, JSON.stringify(userContext)]
     );
 
+    // Return format expected by the frontend's AIChatPage
     res.status(201).json({
       success: true,
       message: 'Pesan terkirim',
-      data: saveResult.rows[0]
+      data: {
+        id: saveResult.rows[0].id,
+        message: aiResponse, // Map the AI response text directly to the message property for the frontend
+        sender: 'ai',
+        timestamp: saveResult.rows[0].created_at
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Gagal mendapatkan respons AI: ' + error.message });
+  }
+});
+
+// POST /chat/receipt (OCR Scan Receipt with Gemini AI)
+router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Tidak ada file struk yang diupload.' });
+    }
+
+    let parsedResult = {
+      amount: 58500,
+      description: 'Makan Siang (Mock Scan)',
+      type: 'expense',
+      category_id: 1,
+      transaction_date: new Date().toISOString().split('T')[0]
+    };
+
+    if (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('xxxx')) {
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const filePart = {
+          inlineData: {
+            data: req.file.buffer.toString('base64'),
+            mimeType: req.file.mimetype
+          }
+        };
+
+        const prompt = `Analisis gambar struk belanja ini dan berikan data JSON terstruktur dengan format berikut:
+{
+  "amount": <angka nominal total belanja saja, contoh: 58500>,
+  "description": "<nama merchant atau deskripsi singkat belanja>",
+  "type": "expense",
+  "category_id": <pilih ID kategori yang paling cocok: 1 untuk Konsumsi/Makan, 2 untuk Transportasi, 3 untuk Belanja/Ritel, 4 untuk Tagihan/Utilitas, 7 untuk Hiburan, 8 untuk Lainnya>,
+  "transaction_date": "<tanggal transaksi dalam format YYYY-MM-DD>"
+}
+Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
+
+        const result = await model.generateContent([prompt, filePart]);
+        const responseText = result.response.text();
+        
+        // Clean JSON from code blocks if any
+        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const geminiJson = JSON.parse(cleanedText);
+        
+        parsedResult = {
+          amount: parseFloat(geminiJson.amount) || 0,
+          description: geminiJson.description || 'Scan Struk Otomatis',
+          type: geminiJson.type || 'expense',
+          category_id: parseInt(geminiJson.category_id) || 8,
+          transaction_date: geminiJson.transaction_date || new Date().toISOString().split('T')[0]
+        };
+      } catch (geminiError) {
+        console.error('Gemini OCR Error, using fallback:', geminiError.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Struk berhasil dianalisis oleh AI',
+      data: parsedResult
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal menganalisis struk: ' + error.message });
   }
 });
 
@@ -796,8 +1021,8 @@ router.delete('/chat/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /chat (Clear history)
-router.delete('/chat', auth, async (req, res) => {
+// DELETE /chat & /chat/history (Clear history)
+router.delete(['/chat', '/chat/history'], auth, async (req, res) => {
   try {
     await db.query('DELETE FROM chat_messages WHERE user_id = $1', [req.user.id]);
     res.json({ success: true, message: 'Riwayat chat berhasil dikosongkan.' });

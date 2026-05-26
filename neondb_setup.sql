@@ -122,45 +122,4 @@ CREATE TABLE reminders (
 );
 CREATE INDEX idx_reminders_user_due ON reminders(user_id, due_date);
 
---------------------------------------------------------------------------------
--- DUMMY SEED DATA
---------------------------------------------------------------------------------
 
--- Insert a Default User
--- Hashed password represents 'password' (bcrypt format)
-INSERT INTO users (id, name, email, password, phone, currency, language, theme, created_at, updated_at)
-VALUES (1, 'Demo Account', 'demo@moneyassist.com', '$2y$12$DqHqVp1Zp1XmD0.zH.l2DeYI0K.F3fL7t84Gk3hE7jB0Jj3L4z8dG', '08123456789', 'IDR', 'id', 'dark', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- Insert Default Categories for user_id = 1
-INSERT INTO categories (id, user_id, name, icon, color, type, budget_limit, description, created_at, updated_at) VALUES
-(1, 1, 'Salary', 'briefcase', '#10b981', 'income', NULL, 'Gaji utama bulanan', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(2, 1, 'Investment', 'trending-up', '#0ea5e9', 'income', NULL, 'Dividen dan imbal hasil investasi', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(3, 1, 'Food', 'coffee', '#f59e0b', 'expense', 1500000.00, 'Kebutuhan makan dan minum harian', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(4, 1, 'Utilities', 'zap', '#6366f1', 'expense', 1000000.00, 'Tagihan listrik, air, dan internet', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(5, 1, 'Rent', 'home', '#ec4899', 'expense', 1500000.00, 'Biaya sewa rumah / kosan', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(6, 1, 'Entertainment', 'film', '#8b5cf6', 'expense', 500000.00, 'Hiburan dan hobi', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- Insert Some Dummy Transactions
-INSERT INTO transactions (id, user_id, category_id, type, amount, description, date, receipt_url, tags, notes, created_at, updated_at) VALUES
-(1, 1, 1, 'income', 15000000.00, 'Gaji Bulanan', '2026-05-25', NULL, '["salary", "monthly"]', 'Gaji utama', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(2, 1, 3, 'expense', 350000.00, 'Makan Malam Bersama Keluarga', '2026-05-25', NULL, '["family", "dinner"]', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(3, 1, 4, 'expense', 800000.00, 'Tagihan Listrik & Internet', '2026-05-24', NULL, '["electricity", "internet"]', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(4, 1, 5, 'expense', 1200000.00, 'Kontrakan Rumah', '2026-05-01', NULL, '["rent", "monthly"]', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(5, 1, 2, 'income', 2500000.00, 'Dividen Saham', '2026-05-20', NULL, '["investment", "stocks"]', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- Insert Some Dummy Savings Goals
-INSERT INTO savings_goals (id, user_id, name, description, target_amount, current_amount, deadline, category, icon, color, priority, status, created_at, updated_at) VALUES
-(1, 1, 'Beli Laptop Baru', 'Untuk menunjang produktivitas kerja remote', 20000000.00, 15000000.00, '2026-12-31 23:59:59', 'Gadget', 'laptop', '#38bdf8', 'high', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(2, 1, 'Dana Darurat', 'Alokasi 6 bulan pengeluaran rutin harian', 50000000.00, 20000000.00, '2027-06-30 23:59:59', 'Savings', 'shield', '#10b981', 'high', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- Insert Some Dummy Recommendations
-INSERT INTO recommendations (id, user_id, title, description, type, priority, potential_savings, implementation_difficulty, status, data, created_at, updated_at) VALUES
-(1, 1, 'Kurangi Biaya Hiburan', 'Anda menghabiskan 25% lebih banyak untuk kategori hiburan bulan ini dibandingkan bulan lalu.', 'saving', 'high', 500000.00, 'Easy', 'pending', '{"category": "Entertainment"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(2, 1, 'Maksimalkan Tabungan Bunga Tinggi', 'Pindahkan sebagian dana darurat Anda ke rekening dengan imbal hasil tinggi.', 'investment', 'medium', 200000.00, 'Medium', 'pending', '{"source": "emergency_fund"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
--- Update Sequence values so Postgres serial auto-increments correctly after manual seeding
-SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
-SELECT setval('categories_id_seq', (SELECT MAX(id) FROM categories));
-SELECT setval('transactions_id_seq', (SELECT MAX(id) FROM transactions));
-SELECT setval('savings_goals_id_seq', (SELECT MAX(id) FROM savings_goals));
-SELECT setval('recommendations_id_seq', (SELECT MAX(id) FROM recommendations));
