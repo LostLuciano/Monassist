@@ -1057,6 +1057,54 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
   }
 });
 
+// POST /chat/guest (Public Guest Chat with Gemini AI on Landing Page)
+router.post('/chat/guest', async (req, res) => {
+  try {
+    const { message, type = 'general' } = req.body;
+    if (!message) {
+      return res.status(422).json({ success: false, message: 'Pesan wajib diisi.' });
+    }
+
+    let aiResponse = '';
+
+    // Check for Gemini API key
+    if (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('xxxx')) {
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const systemPrompt = `Kamu adalah MoneyAssist, asisten keuangan pribadi bertenaga AI.
+Tugas kamu adalah membantu pengguna mengelola uang, merencanakan target tabungan, dan memberikan keputusan keuangan yang bijak.
+Pengguna saat ini sedang berkunjung di halaman beranda (Landing Page) dan belum masuk (login) ke sistem.
+Karena belum masuk, kamu tidak memiliki data transaksi mereka. Berikan saran keuangan umum yang mendalam, ramah, dan profesional.
+Jika mereka menanyakan tentang data transaksi/keuangan pribadi mereka, jelaskan dengan ramah bahwa mereka harus Login/Register terlebih dahulu agar kamu dapat memindai dan memberikan analisis data personal mereka secara aman.
+Pesan Pengguna: ${message}`;
+
+        const result = await model.generateContent(systemPrompt);
+        aiResponse = result.response.text();
+      } catch (geminiError) {
+        console.error('Gemini API Error for guest, using mock:', geminiError.message);
+        aiResponse = getMockChatResponse(message, type);
+      }
+    } else {
+      aiResponse = getMockChatResponse(message, type);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Pesan guest terkirim',
+      data: {
+        id: Date.now(),
+        message: aiResponse,
+        sender: 'ai',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal mendapatkan respons AI: ' + error.message });
+  }
+});
+
 // GET /chat/:id
 router.get('/chat/:id', auth, async (req, res) => {
   try {

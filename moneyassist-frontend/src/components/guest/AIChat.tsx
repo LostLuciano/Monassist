@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 interface Message {
   id: string;
@@ -37,7 +38,7 @@ const AIChat: React.FC = () => {
     'Tips mengelola anggaran bulanan?'
   ];
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
 
     const userMessage: Message = {
@@ -51,34 +52,29 @@ const AIChat: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = getAIResponse(text.toLowerCase());
+    try {
+      const response = await api.post('/chat/guest', { message: text.trim() });
+      const data = response.data.data || response.data;
+      
       const aiMessage: Message = {
+        id: (data.id || Date.now() + 1).toString(),
+        text: data.message || 'Maaf, saya tidak dapat merespons saat ini.',
+        sender: 'ai',
+        timestamp: new Date(data.timestamp || new Date())
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Guest chat error:', error);
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: aiResponse,
+        text: 'Maaf, saya sedang mengalami kendala koneksi dengan server AI. Silakan coba lagi beberapa saat lagi.',
         sender: 'ai',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1200);
-  };
-
-  const getAIResponse = (userText: string): string => {
-    if (userText.includes('kondisi') || userText.includes('keuangan') || userText.includes('finansial') || userText.includes('sehat')) {
-      return 'Untuk memberikan analisis kesehatan finansial yang akurat, saya membutuhkan akses ke data transaksi Anda. Silakan Login atau Daftar terlebih dahulu agar saya dapat menganalisis rasio pemasukan vs pengeluaran Anda.';
     }
-    if (userText.includes('tabungan') || userText.includes('target') || userText.includes('buat')) {
-      return 'Bagus sekali! Membuat target tabungan adalah langkah awal yang cerdas. Setelah Anda Login, saya dapat membantu membuat rekomendasi nominal tabungan realistis berdasarkan kebiasaan Anda.';
-    }
-    if (userText.includes('boros') || userText.includes('kategori') || userText.includes('pengeluaran')) {
-      return 'Saya bisa mengidentifikasi pengeluaran yang tidak perlu. Masuk ke akun Anda untuk melihat diagram breakdown pengeluaran per kategori secara visual dan mendapatkan taktik berhemat.';
-    }
-    if (userText.includes('tips') || userText.includes('kelola') || userText.includes('anggaran')) {
-      return 'Saya dapat membantu mengelola keuangan dengan fitur: pelacakan transaksi otomatis, perencanaan anggaran bulanan, target tabungan, dan peringatan batas belanja. Silakan Login untuk menikmati fitur lengkap ini!';
-    }
-    return 'Pertanyaan yang bagus! Untuk memberikan saran finansial yang personal dan terarah, silakan masuk ke akun MoneyAssist Anda. Saya akan menganalisis data keuangan Anda secara aman.';
   };
 
   const handleQuickQuestion = (question: string) => {
