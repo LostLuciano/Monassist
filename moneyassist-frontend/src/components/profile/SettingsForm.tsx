@@ -290,7 +290,7 @@ const SettingsForm: React.FC = () => {
                     </p>
                     <ol className="text-xs text-slate-400 font-semibold space-y-2 list-decimal list-inside pl-1">
                       <li>
-                        Cari bot Telegram: <a href="https://t.me/MoneyAssistBot" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">@MoneyAssistBot</a> atau klik tautan tersebut.
+                        Cari bot Telegram: <a href="https://t.me/FinMoneyAssist_bot" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">@FinMoneyAssist_bot</a> atau klik tautan tersebut.
                       </li>
                       <li>
                         Kirim perintah berikut ke bot:
