@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../store/store';
+import { setTheme } from '../../store/uiSlice';
 
 const SettingsForm: React.FC = () => {
+  const currentTheme = useSelector((state: RootState) => state.ui.theme);
+  const dispatch = useDispatch();
+
   const [settings, setSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
@@ -9,7 +15,7 @@ const SettingsForm: React.FC = () => {
     budgetAlerts: true,
     goalReminders: true,
     reminderTime: '09:00',
-    theme: 'dark',
+    theme: currentTheme,
     dataSharing: false
   });
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -28,6 +34,7 @@ const SettingsForm: React.FC = () => {
     setMessage(null);
 
     try {
+      dispatch(setTheme(settings.theme as any));
       setMessage({ type: 'success', text: 'Setelan Anda berhasil disimpan!' });
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Gagal menyimpan setelan' });
@@ -152,6 +159,7 @@ const SettingsForm: React.FC = () => {
             >
               <option value="light">Terang</option>
               <option value="dark">Gelap (Glassmorphic)</option>
+              <option value="liquid-glass">Liquid Glass (Premium)</option>
               <option value="auto">Sistem</option>
             </select>
           </div>

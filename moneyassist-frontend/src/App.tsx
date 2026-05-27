@@ -1,7 +1,8 @@
-// src/App.tsx
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from './store/store';
+import { applyTheme } from './utils/theme';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -19,6 +20,18 @@ import InstallPrompt from './components/common/InstallPrompt';
 
 function App() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const theme = useSelector((state: RootState) => state.ui.theme);
+
+  useEffect(() => {
+    applyTheme(theme);
+
+    if (theme === 'auto') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme('auto');
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [theme]);
 
   return (
     <>

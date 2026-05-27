@@ -17,7 +17,7 @@ export const fetchRecommendations = createAsyncThunk(
 
 interface UIState {
   sidebarOpen: boolean;
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'liquid-glass' | 'auto';
   recommendations: Recommendation[];
   loading: boolean;
   error: string | null;
@@ -25,7 +25,7 @@ interface UIState {
 
 const initialState: UIState = {
   sidebarOpen: false,
-  theme: 'light',
+  theme: (localStorage.getItem('moneyassist_theme') as any) || 'dark',
   recommendations: [],
   loading: false,
   error: null
@@ -38,8 +38,9 @@ const uiSlice = createSlice({
     toggleSidebar: (state) => {
       state.sidebarOpen = !state.sidebarOpen;
     },
-    setTheme: (state, action: PayloadAction<'light' | 'dark'>) => {
+    setTheme: (state, action: PayloadAction<'light' | 'dark' | 'liquid-glass' | 'auto'>) => {
       state.theme = action.payload;
+      localStorage.setItem('moneyassist_theme', action.payload);
     },
   },
   extraReducers: (builder) => {
