@@ -6,7 +6,8 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 const mainMenuKeyboard = Markup.keyboard([
   ['📝 Catat Manual', '📸 Upload Struk'],
-  ['📊 Ringkasan Hari Ini', '❓ Bantuan']
+  ['📊 Ringkasan Hari Ini', '❓ Bantuan'],
+  ['🔌 Putuskan Akun']
 ]).resize();
 // Bot Commands
 bot.start((ctx) => {
@@ -88,6 +89,15 @@ bot.on('text', async (ctx) => {
     const user = userResult.rows[0];
 
     // Handle Shortcuts
+    if (text === '🔌 Putuskan Akun' || text.toLowerCase() === '/disconnect') {
+      await db.query(`UPDATE users SET telegram_id = NULL WHERE id = $1`, [user.id]);
+      return ctx.reply(
+        '🔌 *Koneksi Terputus*\n\n' +
+        'Akun MoneyAssist Anda telah berhasil diputus dari bot ini.\n' +
+        'Jika Anda ingin menghubungkannya kembali, silakan buat kode pairing baru di dashboard web.',
+        { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } }
+      );
+    }
     if (text === '📝 Catat Manual') {
       return ctx.reply(
         '✍️ *Cara Catat Manual*\n\n' +
