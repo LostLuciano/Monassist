@@ -38,3 +38,8 @@ moneyassist-frontend/.env
 # Frontend build output
 **/dist/
 **/build/
+
+# Local archives and model logs
+brain/
+bckl.rar
+

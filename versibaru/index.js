@@ -5,8 +5,24 @@ require('dotenv').config();
 const app = express();
 
 // Configure CORS
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5174'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.includes(origin) || origin.startsWith('http://localhost:');
+    if (isAllowed) {
+      return callback(null, true);
+    } else {
+      console.warn(`CORS Warning: Origin ${origin} not in allowed list, but allowed for development`);
+      return callback(null, true);
+    }
+  },
   credentials: true
 }));
 
