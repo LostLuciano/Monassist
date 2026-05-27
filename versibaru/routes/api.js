@@ -237,6 +237,40 @@ router.get('/auth/me', auth, (req, res) => {
   res.json(req.user);
 });
 
+// POST /auth/telegram-code
+router.post('/auth/telegram-code', auth, async (req, res) => {
+  try {
+    const code = 'MA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await db.query(
+      'UPDATE users SET telegram_pairing_code = $1 WHERE id = $2',
+      [code, req.user.id]
+    );
+    res.json({
+      success: true,
+      message: 'Kode pairing berhasil dibuat',
+      pairing_code: code
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal membuat kode pairing: ' + error.message });
+  }
+});
+
+// POST /auth/telegram-disconnect
+router.post('/auth/telegram-disconnect', auth, async (req, res) => {
+  try {
+    await db.query(
+      'UPDATE users SET telegram_id = NULL, telegram_pairing_code = NULL WHERE id = $1',
+      [req.user.id]
+    );
+    res.json({
+      success: true,
+      message: 'Koneksi Telegram berhasil diputus'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal memutus koneksi Telegram: ' + error.message });
+  }
+});
+
 // GET /users/summary
 router.get('/users/summary', auth, async (req, res) => {
   try {

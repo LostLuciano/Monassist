@@ -16,7 +16,7 @@ const auth = async (req, res, next) => {
     
     // Fetch user from DB
     const userResult = await db.query(
-      'SELECT id, name, email, phone, avatar_url, bio, currency, language, theme, notifications_enabled FROM users WHERE id = $1',
+      'SELECT id, name, email, phone, avatar_url, bio, currency, language, theme, notifications_enabled, telegram_id, telegram_pairing_code FROM users WHERE id = $1',
       [decoded.id]
     );
 

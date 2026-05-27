@@ -12,6 +12,8 @@ export interface User {
   currency?: string;
   language?: string;
   theme?: string;
+  telegram_id?: string;
+  telegram_pairing_code?: string;
   created_at: string;
 }
 

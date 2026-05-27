@@ -42,6 +42,26 @@ app.get('/', (req, res) => {
   });
 });
 
+const bot = require('./bot');
+
+// Telegram Webhook Setup Route
+app.get('/api/webhook/setup', async (req, res) => {
+  try {
+    const host = req.get('host');
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const url = `${protocol}://${host}/api/webhook/telegram`;
+    await bot.telegram.setWebhook(url);
+    res.json({ success: true, message: `Webhook set to ${url}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Telegram Webhook Receiver Route
+app.post('/api/webhook/telegram', (req, res) => {
+  bot.handleUpdate(req.body, res);
+});
+
 // Start the server if run directly (local development)
 if (require.main === module) {
   const PORT = process.env.PORT || 8000;
