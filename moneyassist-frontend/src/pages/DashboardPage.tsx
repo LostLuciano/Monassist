@@ -6,7 +6,7 @@ import { formatCurrency } from '../utils/formatters';
 import AuthenticatedLayout from '../components/common/AuthenticatedLayout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { fetchRecommendations, generateRecommendations, clearRecommendations } from '../store/uiSlice';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import api from '../services/api';
 
 interface DashboardSummary {
@@ -31,6 +31,81 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+
+  const categoryLimits: { [key: string]: number } = {
+    'Makanan': 1500000,
+    'Transportasi': 800000,
+    'Hiburan': 600000,
+    'Tagihan': 2000000,
+    'Belanja': 1000000,
+  };
+
+  const getOverspendingAlerts = () => {
+    const alerts: Array<{ category: string; amount: number; limit: number; pct: number }> = [];
+    if (summary && summary.expense_by_category) {
+      summary.expense_by_category.forEach(item => {
+        const name = item.category;
+        const matchedKey = Object.keys(categoryLimits).find(
+          k => k.toLowerCase() === name.toLowerCase() || name.toLowerCase().includes(k.toLowerCase())
+        );
+        if (matchedKey) {
+          const limit = categoryLimits[matchedKey];
+          const pct = (item.amount / limit) * 100;
+          if (pct >= 80) {
+            alerts.push({
+              category: name,
+              amount: item.amount,
+              limit,
+              pct
+            });
+          }
+        }
+      });
+    }
+    return alerts;
+  };
+
+  const getBudget50_30_20 = () => {
+    let needs = 0;
+    let wants = 0;
+    let savings = 0;
+
+    const needsCategories = ['makanan', 'groceries', 'tagihan', 'utilitas', 'transportasi', 'kesehatan', 'sewa', 'pendidikan', 'keperluan rumah', 'house', 'bills', 'transport', 'health', 'education', 'food'];
+    const wantsCategories = ['hiburan', 'belanja', 'jalan-jalan', 'hobi', 'liburan', 'shopping', 'entertainment', 'travel', 'hobby', 'lifestyle', 'dining out', 'restoran'];
+
+    if (summary && summary.expense_by_category) {
+      summary.expense_by_category.forEach(item => {
+        const catName = item.category.toLowerCase().trim();
+        if (needsCategories.some(n => catName.includes(n))) {
+          needs += item.amount;
+        } else if (wantsCategories.some(w => catName.includes(w))) {
+          wants += item.amount;
+        } else {
+          if (catName.includes('invest') || catName.includes('tabung') || catName.includes('darurat') || catName.includes('saving')) {
+            savings += item.amount;
+          } else {
+            needs += item.amount;
+          }
+        }
+      });
+    }
+
+    const totalExp = summary?.total_expense || 0;
+    const totalInc = summary?.total_income || 0;
+    const surplus = Math.max(0, totalInc - totalExp);
+    savings += surplus;
+
+    const total = needs + wants + savings;
+    return {
+      needs,
+      wants,
+      savings,
+      needsPct: total > 0 ? (needs / total) * 100 : 0,
+      wantsPct: total > 0 ? (wants / total) * 100 : 0,
+      savingsPct: total > 0 ? (savings / total) * 100 : 0,
+      total
+    };
+  };
 
   const handleGenerateRecommendations = async () => {
     setGenerating(true);
@@ -155,6 +230,51 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Radar Batas Kategori Alert Banner */}
+        {getOverspendingAlerts().length > 0 && (
+          <div className="bg-rose-500/5 border border-rose-500/20 rounded-3xl p-4 sm:p-5 md:p-6 space-y-4 relative overflow-hidden backdrop-blur-xl shadow-lg shadow-rose-500/5">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl pointer-events-none animate-pulse"></div>
+            <div className="flex gap-4">
+              <div className="w-11 h-11 bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center justify-center text-rose-500 shrink-0 mt-0.5 animate-pulse">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-rose-400">
+                  🚨 Radar Keuangan: Pengeluaran Kategori Hampir Melebihi Batas!
+                </h3>
+                <p className="text-slate-350 text-xs mt-1 leading-relaxed max-w-3xl">
+                  Gemini AI mendeteksi pengeluaran Kakak pada kategori berikut telah mendekati atau melebihi alokasi anggaran bulanan:
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+              {getOverspendingAlerts().map((alert, idx) => (
+                <div key={idx} className="bg-slate-950/60 border border-slate-900 rounded-2xl p-4 relative overflow-hidden">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-bold text-white">{alert.category}</span>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${alert.pct >= 100 ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25' : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'}`}>
+                      {alert.pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-950 mb-2">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${alert.pct >= 100 ? 'bg-rose-500 shadow-md shadow-rose-500/20' : 'bg-amber-500 shadow-md shadow-amber-500/20'}`}
+                      style={{ width: `${Math.min(alert.pct, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
+                    <span>{formatCurrency(alert.amount)}</span>
+                    <span className="text-slate-500">Limit: {formatCurrency(alert.limit)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Daily Reminder Alert Banner */}
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden backdrop-blur-xl">
           <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>
@@ -267,13 +387,89 @@ export default function DashboardPage() {
           <div className="lg:col-span-4 flex flex-col gap-6">
             {/* Category ratio */}
             <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-5 sm:p-6 flex-1">
-              <h2 className="text-sm sm:text-base font-bold text-white">Rasio Kategori Pengeluaran</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Distribusi pengeluaran berdasarkan kategori utama</p>
+              <h2 className="text-sm sm:text-base font-bold text-white">Aturan Anggaran 50/30/20</h2>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Evaluasi kesehatan alokasi keuangan bulanan Anda</p>
               
-              <div className="mt-8 text-center flex flex-col items-center justify-center py-6">
-                <span className="text-3xl mb-2">📊</span>
-                <p className="text-xs font-semibold text-slate-400">Belum ada pengeluaran tercatat.</p>
-              </div>
+              {summary && summary.total_expense > 0 ? (() => {
+                const { needs, wants, savings, needsPct, wantsPct, savingsPct } = getBudget50_30_20();
+                const pieData = [
+                  { name: 'Kebutuhan (50%)', value: needs, color: '#38bdf8' },
+                  { name: 'Keinginan (30%)', value: wants, color: '#f59e0b' },
+                  { name: 'Tabungan (20%)', value: savings, color: '#10b981' }
+                ];
+                return (
+                  <div className="mt-6 space-y-4">
+                    <div className="h-[140px] w-full flex items-center justify-center relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={38}
+                            outerRadius={55}
+                            paddingAngle={4}
+                            dataKey="value"
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: any) => formatCurrency(value)}
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total</span>
+                        <span className="text-xs font-black text-white">{formatCurrency(needs + wants + savings)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-xs">
+                      {/* Needs Row */}
+                      <div className="flex justify-between items-center bg-slate-950/40 border border-slate-900/60 p-2 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-sky-400 rounded-full"></span>
+                          <span className="font-semibold text-slate-300">Kebutuhan (Target: 50%)</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-white">{needsPct.toFixed(0)}%</span>
+                          <span className="text-[10px] text-slate-500 block">{formatCurrency(needs)}</span>
+                        </div>
+                      </div>
+                      {/* Wants Row */}
+                      <div className="flex justify-between items-center bg-slate-950/40 border border-slate-900/60 p-2 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
+                          <span className="font-semibold text-slate-300">Keinginan (Target: 30%)</span>
+                        </div>
+                        <div className="text-right">
+                          <span className={`font-extrabold ${wantsPct > 30 ? 'text-rose-400' : 'text-white'}`}>{wantsPct.toFixed(0)}%</span>
+                          <span className="text-[10px] text-slate-500 block">{formatCurrency(wants)}</span>
+                        </div>
+                      </div>
+                      {/* Savings Row */}
+                      <div className="flex justify-between items-center bg-slate-950/40 border border-slate-900/60 p-2 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+                          <span className="font-semibold text-slate-300">Tabungan (Target: 20%)</span>
+                        </div>
+                        <div className="text-right">
+                          <span className={`font-extrabold ${savingsPct < 20 ? 'text-amber-400' : 'text-white'}`}>{savingsPct.toFixed(0)}%</span>
+                          <span className="text-[10px] text-slate-500 block">{formatCurrency(savings)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div className="mt-8 text-center flex flex-col items-center justify-center py-6">
+                  <span className="text-3xl mb-2">📊</span>
+                  <p className="text-xs font-semibold text-slate-400">Belum ada pengeluaran tercatat.</p>
+                </div>
+              )}
             </div>
 
             {/* Savings Aggregate Card */}
