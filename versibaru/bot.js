@@ -1,9 +1,13 @@
-const { Telegraf } = require('telegraf');
+const { Telegraf, Markup } = require('telegraf');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./db');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
+const mainMenuKeyboard = Markup.keyboard([
+  ['📝 Catat Manual', '📸 Upload Struk'],
+  ['📊 Ringkasan Hari Ini', '❓ Bantuan']
+]).resize();
 // Bot Commands
 bot.start((ctx) => {
   const code = ctx.payload; // Start parameter, e.g. /start MA-123456
@@ -17,7 +21,8 @@ bot.start((ctx) => {
     `2. Masuk ke halaman Profil / Pengaturan\n` +
     `3. Salin kode Telegram Pairing\n` +
     `4. Kirim ke bot ini dengan format: /pair KODE\n\n` +
-    `Setelah terhubung, Anda bisa mencatat transaksi hanya dengan mengirimkan pesan teks di sini!`
+    `Setelah terhubung, Anda bisa mencatat transaksi hanya dengan mengirimkan pesan teks di sini!`,
+    mainMenuKeyboard
   );
 });
 
@@ -50,7 +55,10 @@ async function handlePairing(ctx, code) {
       [telegramId, user.id]
     );
 
-    ctx.reply(`🎉 Akun MoneyAssist Kak ${user.name} berhasil dihubungkan! Sekarang Kakak bisa mencatat transaksi langsung dari sini.`);
+    ctx.reply(
+      `🎉 Akun MoneyAssist Kak ${user.name} berhasil dihubungkan! Sekarang Kakak bisa mencatat transaksi langsung dari sini.`,
+      mainMenuKeyboard
+    );
   } catch (err) {
     console.error('Pairing error:', err);
     ctx.reply('❌ Terjadi kesalahan saat menghubungkan akun.');
@@ -78,6 +86,60 @@ bot.on('text', async (ctx) => {
     }
 
     const user = userResult.rows[0];
+
+    // Handle Shortcuts
+    if (text === '📝 Catat Manual') {
+      return ctx.reply(
+        '✍️ *Cara Catat Manual*\n\n' +
+        'Silakan ketik transaksi Anda seperti biasa.\n' +
+        'Contoh:\n' +
+        '• "Beli nasi goreng 20ribu"\n' +
+        '• "Bayar token listrik 100.000"\n' +
+        '• "Gaji cair 5.000.000"',
+        { parse_mode: 'Markdown' }
+      );
+    }
+    if (text === '📸 Upload Struk') {
+      return ctx.reply(
+        '📸 *Cara Upload Struk*\n\n' +
+        'Silakan klik ikon lampiran (📎) di kiri bawah, pilih foto struk belanja Kakak, lalu kirimkan ke sini.\n\n' +
+        'Sistem AI kami akan otomatis membaca nominal, kategori, dan daftar barang belanjaan Kakak!',
+        { parse_mode: 'Markdown' }
+      );
+    }
+    if (text === '❓ Bantuan') {
+      return ctx.reply(
+        '❓ *Bantuan MoneyAssist Bot*\n\n' +
+        'Bot ini terintegrasi langsung dengan dashboard web Kakak.\n\n' +
+        'Anda dapat mencatat pengeluaran/pemasukan dengan:\n' +
+        '1. *Chat Bebas*: Cukup ceritakan pengeluaran Anda (misal: "tadi nongkrong habis 50rb").\n' +
+        '2. *Scan Struk*: Kirimkan foto struk kasir, bot akan mencatat detailnya otomatis.\n\n' +
+        'Gunakan menu tombol di bawah untuk pintasan.',
+        { parse_mode: 'Markdown' }
+      );
+    }
+    if (text === '📊 Ringkasan Hari Ini') {
+      const today = new Date().toISOString().split('T')[0];
+      const sumResult = await db.query(
+        `SELECT type, SUM(amount) as total FROM transactions WHERE user_id = $1 AND date = $2 GROUP BY type`,
+        [user.id, today]
+      );
+      
+      let income = 0;
+      let expense = 0;
+      sumResult.rows.forEach(r => {
+        if (r.type === 'income') income = parseFloat(r.total) || 0;
+        if (r.type === 'expense') expense = parseFloat(r.total) || 0;
+      });
+
+      return ctx.reply(
+        `📊 *Ringkasan Hari Ini (${today})*\n\n` +
+        `📉 Pengeluaran: Rp ${expense.toLocaleString('id-ID')}\n` +
+        `📈 Pemasukan: Rp ${income.toLocaleString('id-ID')}\n\n` +
+        `Sisa Saldo Hari Ini: Rp ${(income - expense).toLocaleString('id-ID')}`,
+        { parse_mode: 'Markdown' }
+      );
+    }
 
     // Inform user that bot is typing
     await ctx.sendChatAction('typing');
