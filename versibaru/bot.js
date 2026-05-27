@@ -148,24 +148,29 @@ bot.on('text', async (ctx) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-    const prompt = `Kamu adalah parser data transaksi MoneyAssist.
-Tugas kamu adalah mengekstrak nominal, jenis (pemasukan atau pengeluaran), kategori utama, dan keterangan singkat dari teks input pengguna.
-Gunakan kategori berikut:
-- Makanan & Minuman
-- Transportasi
-- Belanja
-- Utilitas & Tagihan
-- Gaji
-- Investasi
-- Hiburan
-- Lainnya
+    const prompt = `Kamu adalah Asisten AI Keuangan dari MoneyAssist.
+Tugas kamu adalah menganalisis pesan pengguna. Pesan pengguna bisa berupa chat biasa (pertanyaan, sapaan) ATAU laporan transaksi (misal "beli makan 50rb" atau "gaji cair 5 juta").
 
-Kembalikan data HANYA dalam format JSON mentah (raw JSON) tanpa pembungkus markdown (\`\`\`json) atau teks lainnya:
+Jika pesan adalah CHAT BIASA (bukan laporan transaksi):
+Berikan jawaban yang ramah, profesional, dan membantu seputar keuangan.
+Format kembalian (WAJIB JSON mentah):
 {
-  "amount": <angka nominal>,
-  "type": "expense" | "income",
-  "category": "<kategori di atas>",
-  "description": "<keterangan singkat>"
+  "is_transaction": false,
+  "reply": "<jawaban natural kamu>"
+}
+
+Jika pesan mengandung LAPORAN TRANSAKSI keuangan:
+Ekstrak datanya dengan kategori: "Makanan & Minuman", "Transportasi", "Belanja", "Utilitas & Tagihan", "Gaji", "Investasi", "Hiburan", atau "Lainnya".
+Format kembalian (WAJIB JSON mentah):
+{
+  "is_transaction": true,
+  "reply": "<pesan konfirmasi ramah>",
+  "transaction_data": {
+    "amount": <angka nominal bulat>,
+    "type": "expense" | "income",
+    "category": "<kategori>",
+    "description": "<keterangan singkat>"
+  }
 }
 
 Teks input: "${text}"`;
@@ -178,9 +183,16 @@ Teks input: "${text}"`;
       jsonText = jsonText.replace(/^```json\n|```$/g, '');
     }
 
-    const txData = JSON.parse(jsonText);
+    const parsed = JSON.parse(jsonText);
 
-    if (!txData.amount || isNaN(txData.amount)) {
+    if (!parsed.is_transaction) {
+      // It's a normal chat
+      return ctx.reply(parsed.reply);
+    }
+
+    // It is a transaction
+    const txData = parsed.transaction_data;
+    if (!txData || !txData.amount || isNaN(txData.amount)) {
       return ctx.reply('⚠️ Maaf, saya tidak dapat mendeteksi nominal transaksi dari pesan tersebut. Mohon sertakan angka nominal yang jelas.');
     }
 
@@ -198,7 +210,8 @@ Teks input: "${text}"`;
 
     const icon = txData.type === 'income' ? '📈' : '📉';
     ctx.reply(
-      `✅ ${icon} Transaksi Berhasil Dicatat!\n\n` +
+      `${parsed.reply}\n\n` +
+      `✅ ${icon} Transaksi Berhasil Dicatat!\n` +
       `• Nominal: Rp ${txData.amount.toLocaleString('id-ID')}\n` +
       `• Kategori: ${txData.category}\n` +
       `• Keterangan: ${txData.description || 'Transaksi Telegram'}`
