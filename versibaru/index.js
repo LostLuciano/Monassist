@@ -66,7 +66,16 @@ app.post('/api/webhook/telegram', (req, res) => {
 if (require.main === module) {
   const PORT = process.env.PORT || 8000;
   app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
+    
+    // Launch Telegram Bot in Polling mode ONLY if explicitly configured in .env (for local dev)
+    if (process.env.TELEGRAM_POLLING === 'true') {
+      bot.launch()
+        .then(() => console.log('🤖 Telegram Bot online in Polling mode.'))
+        .catch(err => console.error('❌ Failed to start Telegram Bot in Polling mode:', err));
+    } else {
+      console.log('🤖 Telegram Bot runs in Webhook mode. Visit /api/webhook/setup to register webhook.');
+    }
   });
 }
 
