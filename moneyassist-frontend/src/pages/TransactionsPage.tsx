@@ -19,6 +19,7 @@ const defaultCategories: Category[] = [
 export default function TransactionsPage() {
   const { transactions, createTransaction, editTransaction, removeTransaction } = useTransactions();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -469,7 +470,8 @@ export default function TransactionsPage() {
                       return (
                         <div
                           key={transaction.id}
-                          className="flex items-center justify-between pt-3.5 first:pt-0 group/item"
+                          onClick={() => setViewingTransaction(transaction)}
+                          className="flex items-center justify-between pt-3.5 pb-3.5 first:pt-0 group/item cursor-pointer hover:bg-slate-900/40 px-3 -mx-3 rounded-xl transition-all"
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 border ${
@@ -499,7 +501,7 @@ export default function TransactionsPage() {
                             {/* Action Buttons */}
                             <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
                               <button
-                                onClick={() => handleEditClick(transaction)}
+                                onClick={(e) => { e.stopPropagation(); handleEditClick(transaction); }}
                                 className="p-1.5 bg-slate-900 hover:bg-teal-500/10 text-slate-400 hover:text-teal-400 rounded-lg transition-colors border border-slate-800"
                                 title="Ubah"
                               >
@@ -508,7 +510,7 @@ export default function TransactionsPage() {
                                 </svg>
                               </button>
                               <button
-                                onClick={() => handleDeleteClick(transaction.id)}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteClick(transaction.id); }}
                                 className="p-1.5 bg-slate-900 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 rounded-lg transition-colors border border-slate-800"
                                 title="Hapus"
                               >
@@ -543,6 +545,39 @@ export default function TransactionsPage() {
         </div>
 
       </div>
+
+      {/* Detail Modal */}
+      {viewingTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={() => setViewingTransaction(null)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl transform transition-all" onClick={e => e.stopPropagation()}>
+            <div className={`p-6 border-b ${viewingTransaction.type === 'income' ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}>
+              <div className="flex justify-between items-start mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl border ${viewingTransaction.type === 'income' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-455 border-rose-500/30'}`}>
+                  {defaultCategories.find(c => c.id === viewingTransaction.category_id)?.icon || '📝'}
+                </div>
+                <button onClick={() => setViewingTransaction(null)} className="p-2 text-slate-400 hover:text-white bg-slate-800/50 hover:bg-slate-700 rounded-xl transition-colors">✕</button>
+              </div>
+              <p className="text-sm font-semibold text-slate-400 mb-1">
+                {new Date(viewingTransaction.transaction_date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+              <h3 className={`text-3xl font-black ${viewingTransaction.type === 'income' ? 'text-emerald-400' : 'text-rose-455'}`}>
+                {viewingTransaction.type === 'income' ? '+' : '-'}{formatCurrency(viewingTransaction.amount)}
+              </h3>
+            </div>
+            <div className="p-6">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Kategori</h4>
+              <p className="text-sm font-semibold text-white mb-6 flex items-center gap-2">
+                {defaultCategories.find(c => c.id === viewingTransaction.category_id)?.name || 'Lainnya'}
+              </p>
+              
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Catatan / Rincian Struk</h4>
+              <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 max-h-48 overflow-y-auto custom-scrollbar">
+                <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed font-mono">{viewingTransaction.description || '-'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AuthenticatedLayout>
   );
 }
