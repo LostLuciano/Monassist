@@ -148,6 +148,108 @@ Teks input: "${text}"`;
   }
 });
 
+// Bot Photo Handler (Scan Struk Belanja)
+bot.on('photo', async (ctx) => {
+  try {
+    // 1. Find user by telegram_id
+    const telegramId = ctx.from.id.toString();
+    const userResult = await db.query(
+      `SELECT id, name FROM users WHERE telegram_id = $1`,
+      [telegramId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return ctx.reply(
+        '⚠️ Akun Anda belum terhubung.\n\n' +
+        'Silakan buka halaman Profil di web MoneyAssist untuk mendapatkan kode pairing, lalu kirimkan di sini dengan format: /pair KODE_ANDA'
+      );
+    }
+
+    const user = userResult.rows[0];
+
+    // Inform user that bot is processing
+    await ctx.reply('🔍 Sedang menganalisis struk belanja Kakak...');
+    await ctx.sendChatAction('typing');
+
+    // Get the largest photo size
+    const photos = ctx.message.photo;
+    const largestPhoto = photos[photos.length - 1];
+    const fileId = largestPhoto.file_id;
+
+    // Get download URL from Telegram
+    const fileUrl = await ctx.telegram.getFileLink(fileId);
+
+    // Download the image buffer
+    const response = await fetch(fileUrl.href);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 2. Request Gemini to parse the receipt image
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+
+    const filePart = {
+      inlineData: {
+        data: buffer.toString('base64'),
+        mimeType: 'image/jpeg'
+      }
+    };
+
+    const prompt = `Analisis gambar struk belanja ini dan berikan data JSON terstruktur dengan format berikut:
+{
+  "amount": <angka nominal total belanja saja, contoh: 58500>,
+  "description": "<Nama Toko>\\n\\nDaftar Belanja:\\n- <Barang 1> (Rp <Harga>)\\n- <Barang 2> (Rp <Harga>)\\n(Sertakan semua barang yang ada di struk beserta harganya menggunakan format baris baru \\\\n)",
+  "type": "expense",
+  "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
+  "transaction_date": "<tanggal transaksi dalam format YYYY-MM-DD>"
+}
+Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
+
+    const aiResult = await model.generateContent([prompt, filePart]);
+    let jsonText = aiResult.response.text().trim();
+
+    // Clean JSON from code blocks if any
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```json\n|```$/g, '');
+    }
+
+    const geminiJson = JSON.parse(jsonText);
+
+    if (!geminiJson.amount || isNaN(geminiJson.amount)) {
+      return ctx.reply('⚠️ Maaf, saya tidak dapat mendeteksi nominal total dari struk tersebut. Mohon pastikan foto struk cukup jelas dan nominal total terlihat.');
+    }
+
+    // 3. Resolve category ID in DB
+    const dbCategoryId = await getDbCategoryId(user.id, geminiJson.category || 'Lainnya', 'expense');
+
+    // 4. Save transaction to database
+    await db.query(
+      `INSERT INTO transactions (user_id, category_id, type, amount, description, date, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [
+        user.id,
+        dbCategoryId,
+        'expense',
+        geminiJson.amount,
+        geminiJson.description || 'Scan Struk Telegram',
+        geminiJson.transaction_date || new Date().toISOString().split('T')[0]
+      ]
+    );
+
+    ctx.reply(
+      `✅ Resi Belanja Berhasil Dicatat!\n\n` +
+      `• Nominal: Rp ${geminiJson.amount.toLocaleString('id-ID')}\n` +
+      `• Kategori: ${geminiJson.category || 'Lainnya'}\n` +
+      `• Rincian Belanja:\n${geminiJson.description}`
+    );
+
+  } catch (error) {
+    console.error('Telegram receipt scan error:', error);
+    ctx.reply('❌ Gagal menganalisis struk. Pastikan file berupa foto struk belanja yang jelas.');
+  }
+});
+
 async function getDbCategoryId(userId, catName, type) {
   const result = await db.query(
     'SELECT id FROM categories WHERE user_id = $1 AND name = $2',
