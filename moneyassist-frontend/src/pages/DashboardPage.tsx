@@ -31,6 +31,8 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   const categoryLimits: { [key: string]: number } = {
     'Makanan': 1500000,
@@ -131,20 +133,164 @@ export default function DashboardPage() {
     }
   };
 
-  // Generate last 7 days dates for the trend graph
+  // Generate dynamic trend data for daily, weekly, monthly, and yearly timeframes
   const getTrendData = () => {
-    const data = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const label = d.toLocaleDateString('id-ID', { month: '2-digit', day: '2-digit' });
-      data.push({ name: label, pengeluaran: 0 }); // Defaulting to 0 to match screenshot Rp 0
+    const now = new Date();
+    
+    if (!transactions || transactions.length === 0) {
+      const defaultData = [];
+      if (timeframe === 'daily') {
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const label = d.toLocaleDateString('id-ID', { month: '2-digit', day: '2-digit' });
+          defaultData.push({ name: label, pengeluaran: 0, pemasukan: 0 });
+        }
+      } else if (timeframe === 'weekly') {
+        for (let i = 3; i >= 0; i--) {
+          defaultData.push({ name: `Minggu ${4 - i}`, pengeluaran: 0, pemasukan: 0 });
+        }
+      } else if (timeframe === 'monthly') {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date();
+          d.setMonth(d.getMonth() - i);
+          defaultData.push({ name: monthNames[d.getMonth()], pengeluaran: 0, pemasukan: 0 });
+        }
+      } else {
+        const currentYear = new Date().getFullYear();
+        for (let i = 2; i >= 0; i--) {
+          defaultData.push({ name: (currentYear - i).toString(), pengeluaran: 0, pemasukan: 0 });
+        }
+      }
+      return defaultData;
     }
+
+    const data = [];
+
+    if (timeframe === 'daily') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        
+        let dailyExpense = 0;
+        let dailyIncome = 0;
+        
+        transactions.forEach(t => {
+          const tDate = t.transaction_date ? t.transaction_date.split('T')[0] : (t.date ? t.date.split('T')[0] : '');
+          if (tDate === dateStr) {
+            if (t.type === 'expense') dailyExpense += parseFloat(t.amount);
+            else if (t.type === 'income') dailyIncome += parseFloat(t.amount);
+          }
+        });
+        
+        const label = d.toLocaleDateString('id-ID', { month: '2-digit', day: '2-digit' });
+        data.push({ name: label, pengeluaran: dailyExpense, pemasukan: dailyIncome });
+      }
+    } else if (timeframe === 'weekly') {
+      for (let i = 3; i >= 0; i--) {
+        const start = new Date();
+        start.setDate(now.getDate() - ((i + 1) * 7 - 1));
+        start.setHours(0, 0, 0, 0);
+        
+        const end = new Date();
+        end.setDate(now.getDate() - (i * 7));
+        end.setHours(23, 59, 59, 999);
+
+        let weeklyExpense = 0;
+        let weeklyIncome = 0;
+
+        transactions.forEach(t => {
+          const tDateStr = t.transaction_date || t.date;
+          if (tDateStr) {
+            const tDate = new Date(tDateStr);
+            if (tDate >= start && tDate <= end) {
+              if (t.type === 'expense') weeklyExpense += parseFloat(t.amount);
+              else if (t.type === 'income') weeklyIncome += parseFloat(t.amount);
+            }
+          }
+        });
+
+        const labelStart = start.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+        const labelEnd = end.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+        
+        data.push({ 
+          name: `${labelStart}-${labelEnd}`, 
+          pengeluaran: weeklyExpense, 
+          pemasukan: weeklyIncome 
+        });
+      }
+    } else if (timeframe === 'monthly') {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(now.getMonth() - i);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+
+        let monthlyExpense = 0;
+        let monthlyIncome = 0;
+
+        transactions.forEach(t => {
+          const tDateStr = t.transaction_date || t.date;
+          if (tDateStr) {
+            const tDate = new Date(tDateStr);
+            if (tDate.getFullYear() === year && tDate.getMonth() === month) {
+              if (t.type === 'expense') monthlyExpense += parseFloat(t.amount);
+              else if (t.type === 'income') monthlyIncome += parseFloat(t.amount);
+            }
+          }
+        });
+
+        data.push({ 
+          name: `${monthNames[month]} ${year.toString().slice(-2)}`, 
+          pengeluaran: monthlyExpense, 
+          pemasukan: monthlyIncome 
+        });
+      }
+    } else if (timeframe === 'yearly') {
+      const currentYear = now.getFullYear();
+      for (let i = 2; i >= 0; i--) {
+        const year = currentYear - i;
+
+        let yearlyExpense = 0;
+        let yearlyIncome = 0;
+
+        transactions.forEach(t => {
+          const tDateStr = t.transaction_date || t.date;
+          if (tDateStr) {
+            const tDate = new Date(tDateStr);
+            if (tDate.getFullYear() === year) {
+              if (t.type === 'expense') yearlyExpense += parseFloat(t.amount);
+              else if (t.type === 'income') yearlyIncome += parseFloat(t.amount);
+            }
+          }
+        });
+
+        data.push({ 
+          name: year.toString(), 
+          pengeluaran: yearlyExpense, 
+          pemasukan: yearlyIncome 
+        });
+      }
+    }
+
     return data;
+  };
+
+  const fetchTransactionsData = async () => {
+    try {
+      const response = await api.get('/transactions', { params: { limit: 1000 } });
+      setTransactions(response.data.data || response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch transactions for trend:', error);
+    }
   };
 
   useEffect(() => {
     fetchSummary();
+    fetchTransactionsData();
     dispatch(fetchRecommendations());
   }, [dispatch]);
 
@@ -357,27 +503,66 @@ export default function DashboardPage() {
           
           {/* Spending Trend Chart */}
           <div className="bg-slate-900/40 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-5 sm:p-6 lg:col-span-8">
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white leading-tight">Membaca Tren Pengeluaran Harian</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">Visualisasi pengeluaran dalam seminggu terakhir</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
+                  {timeframe === 'daily' && 'Tren Keuangan Harian'}
+                  {timeframe === 'weekly' && 'Tren Keuangan Mingguan'}
+                  {timeframe === 'monthly' && 'Tren Keuangan Bulanan'}
+                  {timeframe === 'yearly' && 'Tren Keuangan Tahunan'}
+                </h2>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">
+                  {timeframe === 'daily' && 'Visualisasi pengeluaran & pemasukan 7 hari terakhir'}
+                  {timeframe === 'weekly' && 'Visualisasi pengeluaran & pemasukan 4 minggu terakhir'}
+                  {timeframe === 'monthly' && 'Visualisasi pengeluaran & pemasukan 6 bulan terakhir'}
+                  {timeframe === 'yearly' && 'Visualisasi pengeluaran & pemasukan 3 tahun terakhir'}
+                </p>
+              </div>
+              
+              {/* Timeframe Selector Tabs */}
+              <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-850 self-start sm:self-center">
+                {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setTimeframe(mode)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      timeframe === mode
+                        ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                        : 'text-slate-500 hover:text-slate-350 border border-transparent'
+                    }`}
+                  >
+                    {mode === 'daily' && 'Hari'}
+                    {mode === 'weekly' && 'Minggu'}
+                    {mode === 'monthly' && 'Bulan'}
+                    {mode === 'yearly' && 'Tahun'}
+                  </button>
+                ))}
+              </div>
             </div>
+            
             <div className="h-[250px] w-full mt-6">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={getTrendData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                    <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `Rp ${(val / 1000).toFixed(0)}rb`} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }}
                     labelStyle={{ color: '#94a3b8', fontSize: '11px', fontWeight: 'bold' }}
-                    itemStyle={{ color: '#38bdf8', fontSize: '11px', fontWeight: 'extrabold' }}
+                    itemStyle={{ fontSize: '11px', fontWeight: 'extrabold' }}
+                    formatter={(value: any, name: any) => [formatCurrency(Number(value)), name === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran']}
                   />
-                  <Area type="monotone" dataKey="pengeluaran" stroke="#0ea5e9" strokeWidth={2} fillOpacity={1} fill="url(#colorTrend)" />
+                  <Area type="monotone" dataKey="pemasukan" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorPemasukan)" name="pemasukan" />
+                  <Area type="monotone" dataKey="pengeluaran" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorPengeluaran)" name="pengeluaran" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
