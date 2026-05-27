@@ -42,6 +42,7 @@ interface TransactionState {
   filteredTransactions: Transaction[];
   loading: boolean;
   error: string | null;
+  isFetched: boolean;
   filters: {
     type?: 'income' | 'expense' | 'all';
     category?: string;
@@ -54,6 +55,7 @@ const initialState: TransactionState = {
   filteredTransactions: [],
   loading: false,
   error: null,
+  isFetched: false,
   filters: {
     type: 'all',
     category: '',
@@ -92,6 +94,7 @@ const transactionSlice = createSlice({
       })
       .addCase(fetchTransactions.fulfilled, (state, action) => {
         state.loading = false;
+        state.isFetched = true;
         state.transactions = action.payload || [];
         filterHelper(state);
       })

@@ -48,12 +48,14 @@ interface GoalState {
   goals: SavingsGoal[];
   loading: boolean;
   error: string | null;
+  isFetched: boolean;
 }
 
 const initialState: GoalState = {
   goals: [],
   loading: false,
   error: null,
+  isFetched: false,
 };
 
 const goalSlice = createSlice({
@@ -72,6 +74,7 @@ const goalSlice = createSlice({
       })
       .addCase(fetchGoals.fulfilled, (state, action) => {
         state.loading = false;
+        state.isFetched = true;
         state.goals = action.payload;
       })
       .addCase(fetchGoals.rejected, (state, action) => {

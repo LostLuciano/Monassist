@@ -12,13 +12,13 @@ import { SavingsGoal } from '../types';
 
 export const useGoals = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { goals, loading, error } = useSelector((state: RootState) => state.goals);
+  const { goals, loading, error, isFetched } = useSelector((state: RootState) => state.goals);
 
   useEffect(() => {
-    if (goals.length === 0 && !loading) {
+    if (!isFetched && !loading) {
       dispatch(fetchGoals());
     }
-  }, [dispatch, goals.length, loading]);
+  }, [dispatch, isFetched, loading]);
 
   const createGoal = async (data: Omit<SavingsGoal, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {

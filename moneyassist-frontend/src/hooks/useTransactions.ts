@@ -12,15 +12,15 @@ import { Transaction } from '../types';
 
 export const useTransactions = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { transactions, filteredTransactions, loading, error, filters } = useSelector(
+  const { transactions, filteredTransactions, loading, error, filters, isFetched } = useSelector(
     (state: RootState) => state.transactions
   );
 
   useEffect(() => {
-    if (transactions.length === 0 && !loading) {
+    if (!isFetched && !loading) {
       dispatch(fetchTransactions());
     }
-  }, [dispatch, transactions.length, loading]);
+  }, [dispatch, isFetched, loading]);
 
   const createTransaction = async (data: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
