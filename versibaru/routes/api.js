@@ -944,7 +944,7 @@ router.post(['/chat/send', '/chat/message'], auth, async (req, res) => {
     if (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('xxxx')) {
       try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
         const systemPrompt = `Kamu adalah MoneyAssist, asisten keuangan pribadi bertenaga AI.
 Tugas kamu adalah membantu pengguna mengelola uang, merencanakan target tabungan, dan memberikan keputusan keuangan yang bijak.
