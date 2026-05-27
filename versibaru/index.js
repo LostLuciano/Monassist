@@ -58,8 +58,14 @@ app.get('/api/webhook/setup', async (req, res) => {
 });
 
 // Telegram Webhook Receiver Route
-app.post('/api/webhook/telegram', (req, res) => {
-  bot.handleUpdate(req.body, res);
+app.post('/api/webhook/telegram', async (req, res) => {
+  try {
+    await bot.handleUpdate(req.body);
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(200).send('Error but OK');
+  }
 });
 
 // Start the server if run directly (local development)
