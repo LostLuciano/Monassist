@@ -70,12 +70,13 @@ export default function TransactionsPage() {
       const result = await chatService.processReceipt(file);
       
       // Auto-fill form fields with OCR/AI result
+      const aiData = result.data || result;
       setFormData({
-        type: result.type || 'expense',
-        category_id: result.category_id ? result.category_id.toString() : '1',
-        amount: result.amount ? result.amount.toString() : '',
-        description: result.description || 'Scan Struk Otomatis',
-        transaction_date: result.transaction_date ? result.transaction_date.split('T')[0] : new Date().toISOString().split('T')[0]
+        type: aiData.type || 'expense',
+        category_id: aiData.category_id ? aiData.category_id.toString() : '1',
+        amount: aiData.amount ? aiData.amount.toString() : '',
+        description: aiData.description || 'Scan Struk Otomatis',
+        transaction_date: aiData.transaction_date ? aiData.transaction_date.split('T')[0] : new Date().toISOString().split('T')[0]
       });
     } catch (error) {
       console.error('Receipt scan failed:', error);

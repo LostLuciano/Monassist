@@ -1021,7 +1021,7 @@ router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
         const prompt = `Analisis gambar struk belanja ini dan berikan data JSON terstruktur dengan format berikut:
 {
   "amount": <angka nominal total belanja saja, contoh: 58500>,
-  "description": "<nama merchant atau deskripsi singkat belanja>",
+  "description": "<Nama Toko> - <Daftar lengkap barang yang dibeli, dipisahkan dengan koma (contoh: Indomaret - Susu, Roti, Kopi)>",
   "type": "expense",
   "category_id": <pilih ID kategori yang paling cocok: 1 untuk Konsumsi/Makan, 2 untuk Transportasi, 3 untuk Belanja/Ritel, 4 untuk Tagihan/Utilitas, 7 untuk Hiburan, 8 untuk Lainnya>,
   "transaction_date": "<tanggal transaksi dalam format YYYY-MM-DD>"
