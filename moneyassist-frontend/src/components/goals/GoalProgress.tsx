@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../store/store';
+import { updateGoalProgress } from '../../store/goalSlice';
 import { SavingsGoal } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
@@ -9,6 +12,26 @@ interface GoalProgressProps {
 }
 
 const GoalProgress: React.FC<GoalProgressProps> = ({ goal, onEdit, onDelete }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const [depositAmount, setDepositAmount] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) return;
+
+    setIsSubmitting(true);
+    try {
+      await dispatch(updateGoalProgress({ id: goal.id, amount })).unwrap();
+      setDepositAmount('');
+    } catch (err) {
+      console.error('Failed to update goal progress:', err);
+      alert('Gagal menambah tabungan.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const progress = goal.target_amount > 0 ? (goal.current_amount / goal.target_amount) * 100 : 0;
   const remaining = Math.max(0, goal.target_amount - goal.current_amount);
   
@@ -153,6 +176,40 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ goal, onEdit, onDelete }) =
             )}
           </div>
         </div>
+
+        {/* Deposit/Tabung Form */}
+        {progress < 100 && (
+          <form onSubmit={handleDeposit} className="mt-4 pt-3 border-t border-slate-850 flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="number"
+                placeholder="Tambah tabungan (Rp)..."
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-950/80 border border-slate-800/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500/50 transition-colors font-medium"
+                min="1"
+                required
+              />
+              <span className="absolute right-3 top-2 text-[10px] font-extrabold text-slate-500 uppercase">
+                IDR
+              </span>
+            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 disabled:from-slate-800 disabled:to-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-500/5 hover:shadow-teal-500/10 shrink-0 flex items-center justify-center min-w-[70px]"
+            >
+              {isSubmitting ? (
+                <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                'Tabung'
+              )}
+            </button>
+          </form>
+        )}
 
         {/* Milestone Message */}
         {progress >= 100 && (

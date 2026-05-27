@@ -9,6 +9,7 @@ import {
   setFilter
 } from '../store/transactionSlice';
 import { Transaction } from '../types';
+import { generateRecommendations } from '../store/uiSlice';
 
 export const useTransactions = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -25,6 +26,7 @@ export const useTransactions = () => {
   const createTransaction = async (data: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
     try {
       await dispatch(addTransaction(data)).unwrap();
+      dispatch(generateRecommendations());
     } catch (error) {
       throw error;
     }
@@ -33,6 +35,7 @@ export const useTransactions = () => {
   const editTransaction = async (id: number, data: Partial<Transaction>) => {
     try {
       await dispatch(updateTransaction({ id, ...data })).unwrap();
+      dispatch(generateRecommendations());
     } catch (error) {
       throw error;
     }
@@ -41,6 +44,7 @@ export const useTransactions = () => {
   const removeTransaction = async (id: number) => {
     try {
       await dispatch(deleteTransaction(id)).unwrap();
+      dispatch(generateRecommendations());
     } catch (error) {
       throw error;
     }

@@ -5,7 +5,7 @@ import { RootState, AppDispatch } from '../store/store';
 import { formatCurrency } from '../utils/formatters';
 import AuthenticatedLayout from '../components/common/AuthenticatedLayout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { fetchRecommendations } from '../store/uiSlice';
+import { fetchRecommendations, generateRecommendations, clearRecommendations } from '../store/uiSlice';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import api from '../services/api';
 
@@ -35,13 +35,24 @@ export default function DashboardPage() {
   const handleGenerateRecommendations = async () => {
     setGenerating(true);
     try {
-      await api.post('/recommendations/generate');
-      dispatch(fetchRecommendations());
+      await dispatch(generateRecommendations()).unwrap();
+      fetchSummary();
     } catch (error) {
       console.error('Failed to generate recommendations:', error);
       alert('Gagal membuat rekomendasi finansial. Pastikan Anda sudah memiliki catatan transaksi agar AI dapat menganalisis keuangan Anda.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleClearRecommendations = async () => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus semua rekomendasi AI?')) {
+      try {
+        await dispatch(clearRecommendations(recommendations)).unwrap();
+      } catch (error) {
+        console.error('Failed to clear recommendations:', error);
+        alert('Gagal membersihkan rekomendasi.');
+      }
     }
   };
 
@@ -90,20 +101,17 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
   // Today formatted as YYYY-MM-DD
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <AuthenticatedLayout pageTitle="Dashboard">
-      <div className="space-y-6 md:space-y-8">
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <LoadingSpinner />
+        </div>
+      ) : (
+        <div className="space-y-6 md:space-y-8">
         
         {/* Welcome Header & Indicators Section */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-slate-900/60">
@@ -309,6 +317,14 @@ export default function DashboardPage() {
               >
                 {generating ? 'Menganalisis...' : 'Analisis AI'}
               </button>
+              {recommendations && recommendations.length > 0 && (
+                <button
+                  onClick={handleClearRecommendations}
+                  className="px-3 py-1.5 bg-slate-950/60 hover:bg-rose-500/10 text-slate-400 hover:text-rose-405 border border-slate-850 hover:border-rose-500/20 rounded-xl text-xs font-bold transition-all"
+                >
+                  Bersihkan
+                </button>
+              )}
               <button
                 onClick={() => dispatch(fetchRecommendations())}
                 className="p-1.5 bg-slate-950 border border-slate-850 text-slate-400 hover:text-white rounded-xl transition-all"
@@ -361,6 +377,7 @@ export default function DashboardPage() {
         </div>
 
       </div>
+      )}
     </AuthenticatedLayout>
   );
 }

@@ -15,6 +15,37 @@ export const fetchRecommendations = createAsyncThunk(
   }
 );
 
+export const generateRecommendations = createAsyncThunk(
+  'ui/generateRecommendations',
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await api.post('/recommendations/generate');
+      dispatch(fetchRecommendations());
+      return response.data.data || response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to generate recommendations');
+    }
+  }
+);
+
+export const clearRecommendations = createAsyncThunk(
+  'ui/clearRecommendations',
+  async (recommendations: any[], { dispatch, rejectWithValue }) => {
+    try {
+      const promises = recommendations.map(rec =>
+        api.delete(`/recommendations/${rec.id}`).catch(() =>
+          api.post(`/recommendations/${rec.id}/dismiss`)
+        )
+      );
+      await Promise.all(promises);
+      dispatch(fetchRecommendations());
+      return true;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to clear recommendations');
+    }
+  }
+);
+
 interface UIState {
   sidebarOpen: boolean;
   theme: 'light' | 'dark' | 'liquid-glass' | 'auto';
@@ -51,7 +82,17 @@ const uiSlice = createSlice({
       })
       .addCase(fetchRecommendations.fulfilled, (state, action) => {
         state.loading = false;
-        state.recommendations = action.payload || [];
+        const rawRecommendations = action.payload || [];
+        const uniqueRecs: any[] = [];
+        const seen = new Set<string>();
+        for (const rec of rawRecommendations) {
+          const key = `${rec.title?.trim().toLowerCase()}|${rec.description?.trim().toLowerCase()}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueRecs.push(rec);
+          }
+        }
+        state.recommendations = uniqueRecs;
       })
       .addCase(fetchRecommendations.rejected, (state, action) => {
         state.loading = false;
