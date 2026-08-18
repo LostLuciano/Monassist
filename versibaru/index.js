@@ -32,8 +32,45 @@ app.use(express.json());
 const apiRouter = require('./routes/api');
 app.use('/api', apiRouter);
 
-// Fallback status check route
+// Favicon handler to avoid 404 console errors
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+// Root status check & web app landing redirect
 app.get('/', (req, res) => {
+  if (req.accepts('html')) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="id">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>MoneyAssist API Server</title>
+          <link rel="icon" href="data:,">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+            .card { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(45, 212, 191, 0.2); border-radius: 24px; padding: 36px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); backdrop-filter: blur(16px); }
+            .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(20, 184, 166, 0.1); color: #2dd4bf; border: 1px solid rgba(45, 212, 191, 0.3); padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
+            .dot { width: 8px; height: 8px; border-radius: 50%; background: #2dd4bf; box-shadow: 0 0 8px #2dd4bf; }
+            h1 { font-size: 24px; font-weight: 800; margin: 0 0 8px; background: linear-gradient(to right, #ffffff, #cbd5e1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            p { font-size: 14px; color: #94a3b8; line-height: 1.6; margin: 0 0 24px; }
+            .btn { display: inline-block; background: linear-gradient(to right, #14b8a6, #06b6d4); color: white; text-decoration: none; padding: 12px 28px; border-radius: 12px; font-weight: 700; font-size: 14px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 10px 25px -5px rgba(20, 184, 166, 0.3); }
+            .btn:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -5px rgba(20, 184, 166, 0.5); }
+            .meta { margin-top: 24px; font-size: 11px; color: #64748b; font-family: monospace; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="badge"><span class="dot"></span> Backend API Online</div>
+            <h1>MoneyAssist Server</h1>
+            <p>Ini adalah server backend API & Telegram Bot MoneyAssist. Untuk menggunakan aplikasi web, dashboard keuangan, dan analitik AI, silakan buka aplikasi web utama.</p>
+            <a href="https://moneyassist.netlify.app" class="btn">🚀 Buka Web MoneyAssist</a>
+            <div class="meta">PostgreSQL (Neon) • Express.js • Gemini Vision AI</div>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+
   res.json({
     status: 'success',
     message: 'MoneyAssist Node.js API is online!',
