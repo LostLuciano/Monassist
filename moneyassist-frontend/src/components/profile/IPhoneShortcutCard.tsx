@@ -15,6 +15,7 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
   const isTelegramConnected = Boolean(telegramId);
   const icloudShortcutUrl = 'https://www.icloud.com/shortcuts/bd0b081e7eb843148c45a9505852d6be';
   const uploadEndpointUrl = `${API_BASE_URL}/shortcuts/upload?token=${encodeURIComponent(telegramId)}`;
+  const pingEndpointUrl = `${API_BASE_URL}/shortcuts/ping?token=${encodeURIComponent(telegramId)}`;
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -115,6 +116,35 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
             </div>
           </div>
 
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-cyan-100">Tes Koneksi Telegram</p>
+                <p className="mt-1 text-xs leading-relaxed text-cyan-100/75">
+                  Buka URL ini di Safari iPhone. Kalau Telegram menerima pesan tes, endpoint dan token sudah benar.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(pingEndpointUrl, 'ping')}
+                className="rounded-xl border border-cyan-500/30 bg-slate-900 px-3 py-2 text-xs font-bold text-cyan-200 transition-colors hover:bg-slate-800"
+              >
+                {copyText('ping', 'Salin URL Tes')}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-slate-900 px-3 py-3">
+              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-cyan-200">{pingEndpointUrl}</span>
+              <a
+                href={pingEndpointUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[10px] font-black text-slate-950"
+              >
+                Buka
+              </a>
+            </div>
+          </div>
+
           <div className="space-y-3">
             {[
               'Buka aplikasi Pintasan di iPhone, ketuk +, lalu beri nama Scan MoneyAssist.',
@@ -147,7 +177,7 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
           <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
             <p className="text-sm font-bold text-cyan-100">Cara cek kalau masih gagal</p>
             <p className="mt-2 text-xs leading-relaxed text-cyan-100/75">
-              Di aplikasi Pintasan, jalankan manual dengan tombol Play. Kalau Telegram tidak menerima preview gambar, biasanya field <code className="rounded bg-slate-950/70 px-1.5 py-0.5">photo</code> belum bertipe File atau nilainya belum memakai hasil Ambil Tangkapan Layar.
+              Pertama buka URL Tes Koneksi. Kalau pesan tes masuk tapi preview gambar tidak masuk saat pintasan dijalankan, masalahnya ada di tindakan Dapatkan Isi URL. Kalau pesan tes juga tidak masuk, cek token, koneksi Telegram, env bot, atau deploy backend.
             </p>
           </div>
         </div>

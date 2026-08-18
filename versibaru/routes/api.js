@@ -214,6 +214,34 @@ const notifyShortcutFailure = async (user, message) => {
   }
 };
 
+const resolveShortcutUser = async (token) => {
+  if (!token) {
+    return { userId: null, user: null };
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key_moneyassist');
+    const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id = $1', [decoded.id]);
+    return {
+      userId: decoded.id,
+      user: uRes.rows[0] || null
+    };
+  } catch (e) {
+    const uRes = await db.query(
+      'SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1 OR telegram_id = $1',
+      [token]
+    );
+    if (uRes.rows.length > 0) {
+      return {
+        userId: uRes.rows[0].id,
+        user: uRes.rows[0]
+      };
+    }
+  }
+
+  return { userId: null, user: null };
+};
+
 // Helper for paginated response
 const getPaginatedResponse = (items, total, page, limit) => {
   const lastPage = Math.ceil(total / limit);
@@ -394,6 +422,40 @@ router.get('/shortcuts/download', (req, res) => {
   });
 });
 
+// GET /shortcuts/ping (debug: verify token, backend, and Telegram delivery)
+router.get('/shortcuts/ping', async (req, res) => {
+  try {
+    const token = req.query.token || req.headers['x-api-key'] || null;
+    const { userId, user } = await resolveShortcutUser(token);
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Token pintasan dibutuhkan.' });
+    }
+
+    if (!userId || !user) {
+      return res.status(401).json({ success: false, message: 'Token pintasan tidak valid atau akun tidak ditemukan.' });
+    }
+
+    if (!user.telegram_id) {
+      return res.status(422).json({ success: false, message: 'Akun belum terhubung ke Telegram.' });
+    }
+
+    await notifyShortcutFailure(
+      user,
+      `Tes Pintasan MoneyAssist berhasil.\n\nBackend menerima token untuk akun ${user.name || user.id}. Kalau pesan ini masuk, endpoint dan Telegram sudah benar.`
+    );
+
+    res.json({
+      success: true,
+      message: 'Ping pintasan berhasil dikirim ke Telegram.',
+      user_id: userId,
+      telegram_id: user.telegram_id
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal mengirim ping pintasan: ' + error.message });
+  }
+});
+
 // POST /shortcuts/upload (Direct screenshot upload from iPhone Shortcut)
 router.post('/shortcuts/upload', upload.any(), async (req, res) => {
   try {
@@ -402,27 +464,10 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
       return res.status(401).json({ success: false, message: 'Autentikasi token dibutuhkan.' });
     }
 
-    let userId = null;
-    let user = null;
-
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key_moneyassist');
-      userId = decoded.id;
-    } catch (e) {
-      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1 OR telegram_id = $1', [token]);
-      if (uRes.rows.length > 0) {
-        userId = uRes.rows[0].id;
-        user = uRes.rows[0];
-      }
-    }
+    const { userId, user } = await resolveShortcutUser(token);
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Token tidak valid.' });
-    }
-
-    if (!user) {
-      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id = $1', [userId]);
-      if (uRes.rows.length > 0) user = uRes.rows[0];
     }
 
     const { imageBuffer, mimeType } = getShortcutImagePayload(req);
