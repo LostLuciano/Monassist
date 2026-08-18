@@ -425,7 +425,7 @@ router.post('/shortcuts/upload', upload.single('photo'), async (req, res) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key_moneyassist');
       userId = decoded.id;
     } catch (e) {
-      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1', [token]);
+      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1 OR telegram_id = $1', [token]);
       if (uRes.rows.length > 0) {
         userId = uRes.rows[0].id;
         user = uRes.rows[0];
