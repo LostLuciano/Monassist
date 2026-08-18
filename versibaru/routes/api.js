@@ -271,6 +271,117 @@ router.post('/auth/telegram-disconnect', auth, async (req, res) => {
   }
 });
 
+// POST /shortcuts/upload (Direct screenshot upload from iPhone Shortcut)
+router.post('/shortcuts/upload', upload.single('photo'), async (req, res) => {
+  try {
+    const token = req.query.token || req.headers['x-api-key'] || (req.header('Authorization') ? req.header('Authorization').replace('Bearer ', '') : null);
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Autentikasi token dibutuhkan.' });
+    }
+
+    let userId = null;
+    let user = null;
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key_moneyassist');
+      userId = decoded.id;
+    } catch (e) {
+      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1', [token]);
+      if (uRes.rows.length > 0) {
+        userId = uRes.rows[0].id;
+        user = uRes.rows[0];
+      }
+    }
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Token tidak valid.' });
+    }
+
+    if (!user) {
+      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id = $1', [userId]);
+      if (uRes.rows.length > 0) user = uRes.rows[0];
+    }
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, message: 'File gambar screenshot wajib disertakan.' });
+    }
+
+    // Process image with Gemini Vision AI
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+
+    const filePart = {
+      inlineData: {
+        data: req.file.buffer.toString('base64'),
+        mimeType: req.file.mimetype || 'image/jpeg'
+      }
+    };
+
+    const prompt = `Analisis gambar ini secara teliti dan profesional. Gambar ini berupa tangkapan layar transaksi perbankan / struk / pembayaran QRIS / transfer / e-wallet.
+Tentukan apakah ini adalah PEMASUKAN (income) atau PENGELUARAN (expense).
+Ekstrak dan berikan data JSON terstruktur:
+{
+  "amount": <angka nominal total transaksi murni tanpa titik/koma/simbol, contoh: 50000>,
+  "description": "<Nama Merchant / Toko / Pengirim / Penerima / Keterangan Transaksi>",
+  "type": "expense" | "income",
+  "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
+  "transaction_date": "<tanggal transaksi YYYY-MM-DD>"
+}
+Kembalikan HANYA string JSON mentah.`;
+
+    const aiResult = await model.generateContent([prompt, filePart]);
+    let jsonText = aiResult.response.text().trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```json\n|```$/g, '');
+    }
+
+    const geminiJson = JSON.parse(jsonText);
+    const txType = geminiJson.type === 'income' ? 'income' : 'expense';
+    const amount = parseFloat(geminiJson.amount) || 0;
+    const catName = geminiJson.category || 'Lainnya';
+    const desc = geminiJson.description || (txType === 'income' ? 'Pemasukan (Pintasan iPhone)' : 'Pengeluaran (Pintasan iPhone)');
+    const txDate = geminiJson.transaction_date || new Date().toISOString().split('T')[0];
+
+    const dbCatId = await getDbCategoryId(userId, catName, txType);
+
+    const inserted = await db.query(
+      `INSERT INTO transactions (user_id, category_id, type, amount, description, date, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [userId, dbCatId, txType, amount, desc, txDate]
+    );
+
+    // Push notification to user's Telegram if connected
+    if (user && user.telegram_id && process.env.TELEGRAM_BOT_TOKEN) {
+      try {
+        const bot = require('../bot');
+        const typeLabel = txType === 'income' ? 'Pemasukan' : 'Pengeluaran';
+        await bot.telegram.sendMessage(
+          user.telegram_id,
+          `*Pintasan iPhone: Transaksi Dicatat*\n\n` +
+          `• Tipe: ${typeLabel}\n` +
+          `• Nominal: Rp ${amount.toLocaleString('id-ID')}\n` +
+          `• Kategori: ${catName}\n` +
+          `• Keterangan: ${desc}\n` +
+          `• Tanggal: ${txDate}`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (err) {
+        console.error('Telegram push failed:', err);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Transaksi berhasil dicatat via Pintasan iPhone',
+      data: inserted.rows[0]
+    });
+  } catch (error) {
+    console.error('Shortcut upload error:', error);
+    res.status(500).json({ success: false, message: 'Gagal memproses transaksi: ' + error.message });
+  }
+});
+
 // GET /users/summary
 router.get('/users/summary', auth, async (req, res) => {
   try {

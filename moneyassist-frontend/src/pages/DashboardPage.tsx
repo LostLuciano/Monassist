@@ -369,6 +369,40 @@ export default function DashboardPage() {
             </button>
 
           </div>
+
+          {/* iPhone Shortcut Setup Banner */}
+          <div 
+            onClick={() => navigate('/profile')}
+            className="bg-gradient-to-br from-teal-950/40 via-slate-900/60 to-slate-900/90 border border-teal-500/25 hover:border-teal-500/45 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer transition-all group shadow-sm"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-400 to-cyan-500 flex items-center justify-center text-slate-950 shadow-md shrink-0">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 3.5c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.64 1.35-.57.65-1.07 1.71-.93 2.73.99.08 2.03-.49 2.65-1.23z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-teal-300 transition-colors truncate">
+                    Pintasan iPhone (Double-Tap)
+                  </h3>
+                  <span className="text-[9px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full hidden sm:inline-block">
+                    Auto-OCR
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                  Ketuk 2x punggung iPhone untuk catat transaksi via tangkapan layar otomatis.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 text-xs font-bold text-teal-400 shrink-0 group-hover:translate-x-0.5 transition-transform">
+              <span className="hidden sm:inline">Atur Sekarang</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
         </div>
 
         {/* ========================================================= */}
