@@ -19,9 +19,9 @@ const IPhoneShortcutCard: React.FC = () => {
   return (
     <div className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
       
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
-        <div className="flex items-center gap-3.5">
+      {/* Top Banner & Quick Install Button */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b border-slate-800/80 pb-6">
+        <div className="flex items-start sm:items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-400 to-cyan-500 flex items-center justify-center text-slate-950 shadow-lg shadow-teal-500/20 shrink-0">
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 3.5c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.64 1.35-.57.65-1.07 1.71-.93 2.73.99.08 2.03-.49 2.65-1.23z" />
@@ -29,30 +29,47 @@ const IPhoneShortcutCard: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-white">Pintasan iPhone (Double-Tap Screenshot)</h2>
+              <h2 className="text-lg font-bold text-white">Pintasan iPhone (Double-Tap Otomatis)</h2>
               <span className="text-[10px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                Fitur Unggulan
+                Background Automation
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Cukup ketuk 2x punggung iPhone setelah transaksi, AI akan mencatatnya otomatis.
+            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+              Kirim tangkapan layar transaksi secara hening di latar belakang hanya dengan mengetuk 2x punggung iPhone.
             </p>
           </div>
         </div>
 
-        {/* Quick Launch Button to iOS Shortcuts App */}
-        <a
-          href="shortcuts://create-shortcut"
-          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-teal-400 border border-slate-700 hover:border-teal-500/40 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-          <span>Buka Aplikasi Shortcuts iPhone</span>
-        </a>
+        {/* Action Button: Direct Open in Shortcuts App */}
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href="shortcuts://create-shortcut"
+            className="px-5 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-extrabold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Buka & Buat Pintasan di iPhone</span>
+          </a>
+        </div>
       </div>
 
-      {/* Mode Switcher */}
+      {/* How it works banner */}
+      <div className="bg-gradient-to-r from-teal-950/30 via-slate-900/50 to-cyan-950/30 border border-teal-500/20 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
+        <div className="w-8 h-8 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center shrink-0 mt-0.5">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div className="text-xs space-y-1">
+          <h4 className="font-bold text-white">Cara Kerja di Latar Belakang (Background Execution)</h4>
+          <p className="text-slate-400 leading-relaxed">
+            Saat Anda mengetuk 2x punggung iPhone setelah selesai transfer atau belanja, iPhone akan mengambil screenshot di latar belakang dan langsung mengirimkannya ke Bot Telegram MoneyAssist tanpa perlu membuka aplikasi apa pun. Bot akan langsung mencatat transaksi dan memberi Anda notifikasi!
+          </p>
+        </div>
+      </div>
+
+      {/* Method Selector */}
       <div className="space-y-4">
         <div className="flex gap-2">
           <button
@@ -64,7 +81,7 @@ const IPhoneShortcutCard: React.FC = () => {
                 : 'bg-slate-950/40 text-slate-400 border-slate-800 hover:text-white'
             }`}
           >
-            Metode 1: Kirim ke Bot Telegram (Rekomendasi)
+            Metode 1: Bot Telegram (Rekomendasi)
           </button>
           <button
             type="button"
@@ -79,17 +96,17 @@ const IPhoneShortcutCard: React.FC = () => {
           </button>
         </div>
 
-        {/* STEP BY STEP GUIDANCE */}
+        {/* Step-by-step interactive configuration */}
         <div className="space-y-5 pt-2">
           
           {/* Step 1 */}
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-2">
             <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">1</span>
-              <h3 className="text-sm font-bold text-white">Buat Pintasan Baru di Aplikasi Shortcuts iPhone</h3>
+              <h3 className="text-sm font-bold text-white">Buka Aplikasi Pintasan (Shortcuts)</h3>
             </div>
             <p className="text-xs text-slate-400 pl-8 leading-relaxed">
-              Buka aplikasi <strong>Pintasan (Shortcuts)</strong> di iPhone Anda, lalu ketuk tanda tambah (<strong>+</strong>) di pojok kanan atas. Beri nama pintasan misalnya: <code className="bg-slate-900 px-2 py-0.5 rounded text-teal-300 font-mono">Scan MoneyAssist</code>.
+              Klik tombol di atas atau buka aplikasi <strong>Pintasan</strong> di iPhone, ketuk <strong>+</strong> dan beri nama: <code className="bg-slate-900 px-2 py-0.5 rounded text-teal-300 font-mono">Scan MoneyAssist</code>.
             </p>
           </div>
 
@@ -97,7 +114,7 @@ const IPhoneShortcutCard: React.FC = () => {
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-4">
             <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">2</span>
-              <h3 className="text-sm font-bold text-white">Tambahkan 2 Tindakan Berikut:</h3>
+              <h3 className="text-sm font-bold text-white">Tambahkan 2 Tindakan Saja:</h3>
             </div>
             
             <div className="pl-8 space-y-4">
@@ -185,13 +202,16 @@ const IPhoneShortcutCard: React.FC = () => {
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
             <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">3</span>
-              <h3 className="text-sm font-bold text-white">Aktifkan Ketuk Bagian Belakang (Back Tap) di iPhone</h3>
+              <h3 className="text-sm font-bold text-white">Hubungkan ke Ketuk Bagian Belakang (Back Tap)</h3>
             </div>
-            <div className="pl-8 text-xs text-slate-400 space-y-2">
-              <p>1. Buka <strong>Pengaturan (Settings)</strong> iPhone.</p>
-              <p>2. Pilih <strong>Aksesibilitas (Accessibility)</strong> &gt; <strong>Sentuh (Touch)</strong>.</p>
+            <div className="pl-8 text-xs text-slate-400 space-y-2 leading-relaxed">
+              <p>1. Buka aplikasi <strong>Pengaturan (Settings)</strong> di iPhone.</p>
+              <p>2. Masuk ke <strong>Aksesibilitas (Accessibility)</strong> &gt; <strong>Sentuh (Touch)</strong>.</p>
               <p>3. Gulir ke paling bawah &gt; pilih <strong>Ketuk Bagian Belakang (Back Tap)</strong>.</p>
-              <p>4. Pilih <strong>Ketuk Dua Kali (Double Tap)</strong> &gt; gulir ke daftar pintasan lalu pilih <strong className="text-teal-400">Scan MoneyAssist</strong>.</p>
+              <p>4. Pilih <strong>Ketuk Dua Kali (Double Tap)</strong> &gt; pilih <strong className="text-teal-400">Scan MoneyAssist</strong>.</p>
+              <p className="text-[11px] text-teal-300 bg-teal-500/10 border border-teal-500/20 p-2.5 rounded-xl mt-2">
+                Selesai! Sekarang kapan saja Anda melakukan transaksi, cukup ketuk 2x punggung iPhone Anda untuk mencatatnya secara otomatis di latar belakang.
+              </p>
             </div>
           </div>
 
