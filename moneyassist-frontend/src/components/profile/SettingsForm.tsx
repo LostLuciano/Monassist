@@ -168,7 +168,7 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
               onClick={onGoToShortcuts}
               className="w-full rounded-xl bg-teal-500 px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-teal-400"
             >
-              Pasang Pintasan iPhone
+              Buka Panduan Pintasan iPhone
             </button>
           </div>
         ) : (

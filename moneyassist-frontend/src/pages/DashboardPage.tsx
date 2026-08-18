@@ -1,15 +1,28 @@
-import { useEffect, useState, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState, AppDispatch } from '../store/store';
 import { formatCurrency } from '../utils/formatters';
 import AuthenticatedLayout from '../components/common/AuthenticatedLayout';
-import LoadingSpinner from '../components/common/LoadingSpinner';
 import { fetchRecommendations } from '../store/uiSlice';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import api from '../services/api';
 import { getCategoryIcon } from '../utils/categoryIcons';
-import TransactionCalendar, { getTransactionCalendarRange } from '../components/calendar/TransactionCalendar';
+
+const DashboardTrendChart = lazy(() => import('../components/dashboard/DashboardTrendChart'));
+const TransactionCalendar = lazy(() => import('../components/calendar/TransactionCalendar'));
+
+const toDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getCalendarRequestRange = (month: Date) => {
+  const start = new Date(month.getFullYear(), month.getMonth(), 1);
+  const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  return { start: toDateKey(start), end: toDateKey(end) };
+};
 
 interface DashboardSummary {
   total_income: number;
@@ -74,7 +87,7 @@ export default function DashboardPage() {
 
   const fetchCalendarTransactions = async (month: Date) => {
     try {
-      const { start, end } = getTransactionCalendarRange(month);
+      const { start, end } = getCalendarRequestRange(month);
       const res = await api.get('/transactions', {
         params: {
           start_date: start,
@@ -243,16 +256,6 @@ export default function DashboardPage() {
     }
     return data;
   }, [transactions, timeframe]);
-
-  if (loading) {
-    return (
-      <AuthenticatedLayout pageTitle="Dashboard">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <LoadingSpinner />
-        </div>
-      </AuthenticatedLayout>
-    );
-  }
 
   return (
     <AuthenticatedLayout pageTitle="Dashboard">
@@ -433,11 +436,13 @@ export default function DashboardPage() {
         {/* ========================================================= */}
         {/* 4. KALENDER TRANSAKSI */}
         {/* ========================================================= */}
-        <TransactionCalendar
-          transactions={calendarTransactions}
-          month={calendarMonth}
-          onMonthChange={setCalendarMonth}
-        />
+        <Suspense fallback={<div className="h-80 rounded-2xl border border-slate-800/80 bg-slate-900/50 animate-pulse" />}>
+          <TransactionCalendar
+            transactions={calendarTransactions}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
+          />
+        </Suspense>
 
         {/* ========================================================= */}
         {/* 5. AKTIVITAS TERBARU (Clean Transaction List) */}
@@ -454,7 +459,23 @@ export default function DashboardPage() {
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-2 divide-y divide-slate-800/60">
-            {transactions.slice(0, 4).length > 0 ? (
+            {loading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 rounded-xl bg-slate-800/70 animate-pulse" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-28 rounded bg-slate-800/80 animate-pulse" />
+                      <div className="h-2.5 w-40 rounded bg-slate-800/60 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 w-20 rounded bg-slate-800/80 animate-pulse" />
+                    <div className="ml-auto h-2.5 w-12 rounded bg-slate-800/60 animate-pulse" />
+                  </div>
+                </div>
+              ))
+            ) : transactions.slice(0, 4).length > 0 ? (
               transactions.slice(0, 4).map((tx) => {
                 const isIncome = tx.type === 'income';
                 const catName = tx.category?.name || 'Lainnya';
@@ -635,28 +656,9 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="h-56 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData}>
-                      <defs>
-                        <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
-                      <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(v) => `Rp${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                        formatter={(val: any) => formatCurrency(Number(val))}
-                      />
-                      <Area type="monotone" dataKey="pengeluaran" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorExpense)" />
-                      <Area type="monotone" dataKey="pemasukan" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <Suspense fallback={<div className="h-full w-full rounded-xl bg-slate-950/60 animate-pulse" />}>
+                    <DashboardTrendChart data={trendData} />
+                  </Suspense>
                 </div>
               </div>
 
