@@ -260,9 +260,9 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
 
       <section className="bg-rose-950/15 border border-rose-500/20 rounded-2xl p-4 sm:p-6 space-y-4">
         <div>
-          <h2 className="text-base font-bold text-rose-300">Hapus Data</h2>
+          <h2 className="text-base font-bold text-rose-300">Mulai dari Awal</h2>
           <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            Bersihkan transaksi, target tabungan, rekomendasi, dan riwayat chat. Akun tetap aktif.
+            Bersihkan semua transaksi, target tabungan, rekomendasi, dan riwayat chat. Akun tetap aktif.
           </p>
         </div>
         <button
@@ -277,9 +277,9 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
           <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-slate-900 p-5 shadow-2xl sm:p-6">
-            <h3 className="text-lg font-bold text-white">Konfirmasi Hapus Data</h3>
+            <h3 className="text-lg font-bold text-white">Mulai dari Awal?</h3>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              Ketik HAPUS untuk membersihkan data transaksi dan riwayat. Tindakan ini tidak bisa dibatalkan.
+              Ketik HAPUS untuk membersihkan data transaksi, target, rekomendasi, dan riwayat chat. Tindakan ini tidak bisa dibatalkan.
             </p>
 
             <input

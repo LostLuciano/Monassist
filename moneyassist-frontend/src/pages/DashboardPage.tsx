@@ -9,6 +9,7 @@ import { fetchRecommendations } from '../store/uiSlice';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import api from '../services/api';
 import { getCategoryIcon } from '../utils/categoryIcons';
+import TransactionCalendar, { getTransactionCalendarRange } from '../components/calendar/TransactionCalendar';
 
 interface DashboardSummary {
   total_income: number;
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [showBalance, setShowBalance] = useState(true);
   const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [calendarTransactions, setCalendarTransactions] = useState<any[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [showChartDetail, setShowChartDetail] = useState(false);
 
   // Dynamic Greeting based on real local time
@@ -69,11 +72,33 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchCalendarTransactions = async (month: Date) => {
+    try {
+      const { start, end } = getTransactionCalendarRange(month);
+      const res = await api.get('/transactions', {
+        params: {
+          start_date: start,
+          end_date: end,
+          limit: 500
+        }
+      });
+      if (res.data?.success) {
+        setCalendarTransactions(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load calendar transactions:', err);
+    }
+  };
+
   useEffect(() => {
     fetchSummary();
     fetchTransactions();
     dispatch(fetchRecommendations());
   }, [dispatch]);
+
+  useEffect(() => {
+    fetchCalendarTransactions(calendarMonth);
+  }, [calendarMonth]);
 
   // Compute 50/30/20 Budget Stats
   const budgetRatio = useMemo(() => {
@@ -256,6 +281,12 @@ export default function DashboardPage() {
             </svg>
           </button>
         </div>
+
+        <TransactionCalendar
+          transactions={calendarTransactions}
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+        />
 
         {/* ========================================================= */}
         {/* 2. RINGKASAN DALAM SATU CARD (Unified Balance Card) */}
