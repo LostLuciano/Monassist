@@ -5,9 +5,8 @@ const {
   DEFAULT_TEXT_MODEL,
   DEFAULT_VISION_PROVIDER,
   DEFAULT_VISION_MODEL,
-  generateText,
-  generateVision,
-  parseJsonResponse
+  generateTextJson,
+  generateVisionJson
 } = require('./services/aiProvider');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
@@ -281,8 +280,7 @@ Format kembalian (WAJIB JSON mentah):
 
 Teks input pengguna: "${text}"`;
 
-    const aiText = await generateText({ prompt, settings: aiSettings });
-    const parsed = parseJsonResponse(aiText);
+    const parsed = await generateTextJson({ prompt, settings: aiSettings });
 
     if (!parsed.is_transaction) {
       return ctx.reply(parsed.reply);
@@ -374,7 +372,7 @@ Aturan khusus:
 - Jangan gunakan angka saldo rekening sebagai amount.
 Kembalikan HANYA format JSON mentah tanpa markdown.`;
 
-    const aiText = await generateVision({
+    const geminiJson = await generateVisionJson({
       prompt,
       image: {
         data: buffer.toString('base64'),
@@ -382,7 +380,6 @@ Kembalikan HANYA format JSON mentah tanpa markdown.`;
       },
       settings: aiSettings
     });
-    const geminiJson = parseJsonResponse(aiText);
 
     if (!geminiJson.amount || isNaN(geminiJson.amount)) {
       return ctx.reply('Nominal transaksi tidak dapat terdeteksi dari gambar. Pastikan angka nominal dan rincian transaksi terbaca jelas.');

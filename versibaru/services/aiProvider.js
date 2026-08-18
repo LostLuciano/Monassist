@@ -11,6 +11,7 @@ const MODEL_OPTIONS = {
       { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' }
     ],
     openrouter: [
+      { id: 'openrouter/free', label: 'OpenRouter Free Router' },
       { id: 'google/gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
       { id: 'google/gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
       { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
@@ -24,6 +25,7 @@ const MODEL_OPTIONS = {
       { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }
     ],
     openrouter: [
+      { id: 'openrouter/free', label: 'OpenRouter Free Router' },
       { id: 'google/gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
       { id: 'google/gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
       { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' }
@@ -50,13 +52,13 @@ const providerSupportsTask = (provider, task) => Boolean(MODEL_OPTIONS[task]?.[p
 const getFallbackConfig = (task) => {
   if (task === 'vision') {
     if (hasKey(getProviderKey('google'))) return { provider: 'google', model: DEFAULT_VISION_MODEL };
-    if (hasKey(getProviderKey('openrouter'))) return { provider: 'openrouter', model: 'google/gemini-3.7-flash' };
+    if (hasKey(getProviderKey('openrouter'))) return { provider: 'openrouter', model: 'openrouter/free' };
     return { provider: DEFAULT_VISION_PROVIDER, model: DEFAULT_VISION_MODEL };
   }
 
   if (hasKey(getProviderKey('google'))) return { provider: 'google', model: DEFAULT_TEXT_MODEL };
   if (hasKey(getProviderKey('groq'))) return { provider: 'groq', model: 'openai/gpt-oss-120b' };
-  if (hasKey(getProviderKey('openrouter'))) return { provider: 'openrouter', model: 'google/gemini-3.7-flash' };
+  if (hasKey(getProviderKey('openrouter'))) return { provider: 'openrouter', model: 'openrouter/free' };
   return { provider: DEFAULT_TEXT_PROVIDER, model: DEFAULT_TEXT_MODEL };
 };
 
@@ -155,20 +157,91 @@ const callOpenAICompatible = async ({ provider, model, prompt, image }) => {
   return data.choices?.[0]?.message?.content || '';
 };
 
-const generateText = async ({ prompt, settings }) => {
-  const config = normalizeConfig(settings, 'text');
-  if (config.provider === 'google') {
-    return callGoogle({ model: config.model, prompt });
+const callConfiguredProvider = ({ provider, model, prompt, image }) => {
+  if (provider === 'google') {
+    return callGoogle({ model, prompt, image });
   }
-  return callOpenAICompatible({ provider: config.provider, model: config.model, prompt });
+  return callOpenAICompatible({ provider, model, prompt, image });
+};
+
+const uniqueConfigs = (configs) => {
+  const seen = new Set();
+  return configs.filter((config) => {
+    if (!config || !providerSupportsTask(config.provider, config.task || 'text')) return false;
+    if (!hasKey(getProviderKey(config.provider))) return false;
+    const key = `${config.provider}:${config.model}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const getCandidateConfigs = (task, selectedConfig) => {
+  const preferred = { ...selectedConfig, task };
+
+  if (task === 'vision') {
+    return uniqueConfigs([
+      preferred,
+      { provider: 'openrouter', model: 'openrouter/free', task },
+      { provider: 'google', model: DEFAULT_VISION_MODEL, task },
+      { provider: 'openrouter', model: 'google/gemini-3.7-flash', task }
+    ]);
+  }
+
+  return uniqueConfigs([
+    preferred,
+    { provider: 'groq', model: 'openai/gpt-oss-120b', task },
+    { provider: 'openrouter', model: 'openrouter/free', task },
+    { provider: 'google', model: DEFAULT_TEXT_MODEL, task },
+    { provider: 'openrouter', model: 'google/gemini-3.7-flash', task }
+  ]);
+};
+
+const generateWithFallback = async ({ task, prompt, image, settings }) => {
+  const selectedConfig = normalizeConfig(settings, task);
+  const candidates = getCandidateConfigs(task, selectedConfig);
+  const errors = [];
+
+  for (const config of candidates) {
+    try {
+      const text = await callConfiguredProvider({
+        provider: config.provider,
+        model: config.model,
+        prompt,
+        image
+      });
+
+      if (!String(text || '').trim()) {
+        throw new Error('Respons AI kosong.');
+      }
+
+      return {
+        text,
+        provider: config.provider,
+        model: config.model,
+        attempts: errors
+      };
+    } catch (error) {
+      errors.push(`${config.provider}/${config.model}: ${error.message}`);
+    }
+  }
+
+  const message = errors.length
+    ? `Semua provider AI gagal. ${errors.join(' | ')}`
+    : 'Tidak ada provider AI dengan API key valid.';
+  const finalError = new Error(message);
+  finalError.attempts = errors;
+  throw finalError;
+};
+
+const generateText = async ({ prompt, settings }) => {
+  const result = await generateWithFallback({ task: 'text', prompt, settings });
+  return result.text;
 };
 
 const generateVision = async ({ prompt, image, settings }) => {
-  const config = normalizeConfig(settings, 'vision');
-  if (config.provider === 'google') {
-    return callGoogle({ model: config.model, prompt, image });
-  }
-  return callOpenAICompatible({ provider: config.provider, model: config.model, prompt, image });
+  const result = await generateWithFallback({ task: 'vision', prompt, image, settings });
+  return result.text;
 };
 
 const cleanJsonText = (text) => {
@@ -183,6 +256,54 @@ const cleanJsonText = (text) => {
 
 const parseJsonResponse = (text) => JSON.parse(cleanJsonText(text));
 
+const generateJsonWithFallback = async ({ task, prompt, image, settings }) => {
+  const selectedConfig = normalizeConfig(settings, task);
+  const candidates = getCandidateConfigs(task, selectedConfig);
+  const errors = [];
+
+  for (const config of candidates) {
+    try {
+      const text = await callConfiguredProvider({
+        provider: config.provider,
+        model: config.model,
+        prompt,
+        image
+      });
+
+      if (!String(text || '').trim()) {
+        throw new Error('Respons AI kosong.');
+      }
+
+      return {
+        data: parseJsonResponse(text),
+        text,
+        provider: config.provider,
+        model: config.model,
+        attempts: errors
+      };
+    } catch (error) {
+      errors.push(`${config.provider}/${config.model}: ${error.message}`);
+    }
+  }
+
+  const message = errors.length
+    ? `Semua provider AI gagal menghasilkan JSON valid. ${errors.join(' | ')}`
+    : 'Tidak ada provider AI dengan API key valid.';
+  const finalError = new Error(message);
+  finalError.attempts = errors;
+  throw finalError;
+};
+
+const generateTextJson = async ({ prompt, settings }) => {
+  const result = await generateJsonWithFallback({ task: 'text', prompt, settings });
+  return result.data;
+};
+
+const generateVisionJson = async ({ prompt, image, settings }) => {
+  const result = await generateJsonWithFallback({ task: 'vision', prompt, image, settings });
+  return result.data;
+};
+
 module.exports = {
   MODEL_OPTIONS,
   DEFAULT_TEXT_PROVIDER,
@@ -191,6 +312,8 @@ module.exports = {
   DEFAULT_VISION_MODEL,
   generateText,
   generateVision,
+  generateTextJson,
+  generateVisionJson,
   parseJsonResponse,
   normalizeConfig,
   getFallbackConfig

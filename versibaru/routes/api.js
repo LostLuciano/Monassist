@@ -12,8 +12,7 @@ const {
   DEFAULT_VISION_PROVIDER,
   DEFAULT_VISION_MODEL,
   generateText,
-  generateVision,
-  parseJsonResponse
+  generateVisionJson
 } = require('../services/aiProvider');
 
 // Configure multer for file uploads in memory
@@ -496,7 +495,7 @@ Aturan:
 - Jangan gunakan angka saldo rekening sebagai amount.
 - Kembalikan HANYA string JSON mentah tanpa markdown.`;
 
-    const aiText = await generateVision({
+    const geminiJson = await generateVisionJson({
       prompt,
       image: {
         data: imageBuffer.toString('base64'),
@@ -504,7 +503,6 @@ Aturan:
       },
       settings: aiSettings
     });
-    const geminiJson = parseJsonResponse(aiText);
     const txType = geminiJson.type === 'income' ? 'income' : 'expense';
     const amount = parseFloat(geminiJson.amount) || 0;
     if (!amount || Number.isNaN(amount)) {
@@ -563,7 +561,11 @@ Aturan:
       if (token) {
         const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1 OR telegram_id = $1', [token]);
         if (uRes.rows.length > 0) {
-          await notifyShortcutFailure(uRes.rows[0], 'Screenshot dari Pintasan iPhone sudah masuk ke server, tapi gagal diproses AI. Cek setelan model/API key backend lalu coba lagi.');
+          const shortError = String(error.message || '').slice(0, 700);
+          await notifyShortcutFailure(
+            uRes.rows[0],
+            `Screenshot dari Pintasan iPhone sudah masuk ke server, tapi gagal diproses AI.\n\nDetail singkat: ${shortError}\n\nCek setelan model/API key backend lalu coba lagi.`
+          );
         }
       }
     } catch (notifyError) {
@@ -1431,7 +1433,7 @@ Aturan:
 - Jika tanggal tidak terbaca, gunakan tanggal hari ini.
 - Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
 
-      const responseText = await generateVision({
+      const geminiJson = await generateVisionJson({
         prompt,
         image: {
           data: req.file.buffer.toString('base64'),
@@ -1439,7 +1441,6 @@ Aturan:
         },
         settings: aiSettings
       });
-      const geminiJson = parseJsonResponse(responseText);
 
       parsedResult = {
         amount: parseFloat(geminiJson.amount) || 0,
