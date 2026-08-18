@@ -167,24 +167,40 @@ const VideoScrollHero: React.FC = () => {
       animFrameId = requestAnimationFrame(smoothPlaybackEngine);
     };
 
-    if (video.readyState >= 2) {
+    // Immediate timeline setup (never wait or block mobile UI)
+    setupTimeline();
+    setVideoReady(true);
+
+    // Progressive video readiness listeners
+    const onVideoReady = () => {
       setVideoReady(true);
-      setupTimeline();
-    } else {
-      video.onloadeddata = () => {
-        setVideoReady(true);
-        setupTimeline();
-      };
-      video.oncanplay = () => {
-        setVideoReady(true);
-      };
-    }
+      if (video.duration && tl) {
+        // Refresh timeline with exact duration if needed
+        ScrollTrigger.refresh();
+      }
+    };
+
+    video.addEventListener('loadedmetadata', onVideoReady);
+    video.addEventListener('loadeddata', onVideoReady);
+    video.addEventListener('canplay', onVideoReady);
+    video.addEventListener('canplaythrough', onVideoReady);
+
+    // Fallback timer to guarantee no hanging
+    const fallbackTimer = setTimeout(() => {
+      setVideoReady(true);
+      ScrollTrigger.refresh();
+    }, 400);
 
     return () => {
+      clearTimeout(fallbackTimer);
       if (animFrameId) cancelAnimationFrame(animFrameId);
       if (scrollTimeout) clearTimeout(scrollTimeout);
       if (tl) tl.kill();
       ScrollTrigger.getAll().forEach(t => t.kill());
+      video.removeEventListener('loadedmetadata', onVideoReady);
+      video.removeEventListener('loadeddata', onVideoReady);
+      video.removeEventListener('canplay', onVideoReady);
+      video.removeEventListener('canplaythrough', onVideoReady);
     };
   }, []);
 
@@ -202,12 +218,18 @@ const VideoScrollHero: React.FC = () => {
           src="/videos/hero-scroll.mp4"
           playsInline
           muted
+          autoPlay
           loop
           preload="auto"
-          className="w-full h-full object-cover filter brightness-95 contrast-105"
+          disablePictureInPicture
+          disableRemotePlayback
+          className={`w-full h-full object-cover filter brightness-95 contrast-105 transition-opacity duration-700 ${
+            videoReady ? 'opacity-100' : 'opacity-60'
+          }`}
           style={{
             willChange: 'transform',
             transform: 'translate3d(0, 0, 0)',
+            WebkitTransform: 'translate3d(0, 0, 0)',
             backfaceVisibility: 'hidden'
           }}
         />
@@ -215,14 +237,6 @@ const VideoScrollHero: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-slate-950/70 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-transparent to-slate-950/80 pointer-events-none" />
       </div>
-
-      {/* Loading Skeleton Indicator */}
-      {!videoReady && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-30 space-y-4">
-          <div className="w-12 h-12 border-4 border-teal-500/20 border-t-teal-400 rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-slate-400">Menyiapkan Tampilan Video...</p>
-        </div>
-      )}
 
       {/* ============================================================ */}
       {/* FLOATING GLASS STORYTELLING OVERLAYS */}
