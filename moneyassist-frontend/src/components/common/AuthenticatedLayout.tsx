@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store/store';
 import { logout } from '../../store/authSlice';
@@ -13,6 +13,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     dispatch(logout());
@@ -63,6 +64,53 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    }
+  ];
+
+  const transactionTab = new URLSearchParams(location.search).get('tab');
+  const mobileNavItems = [
+    {
+      to: '/dashboard',
+      label: 'Beranda',
+      isActive: location.pathname === '/dashboard',
+      icon: (
+        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 3.25 3.75 10.2v9.05c0 .83.67 1.5 1.5 1.5h4.25v-5.5h5v5.5h4.25c.83 0 1.5-.67 1.5-1.5V10.2L12 3.25Zm0 2.62 6.25 5.26v7.62H16.5v-5.5h-9v5.5H5.75v-7.62L12 5.87Z" />
+        </svg>
+      )
+    },
+    {
+      to: '/transactions?tab=history',
+      label: 'Riwayat Transaksi',
+      isActive: location.pathname === '/transactions' && transactionTab === 'history',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3.5 12a8.5 8.5 0 1 0 2.49-6.01M3.5 5.5v4h4" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 7.5v5l3.25 2" />
+        </svg>
+      )
+    },
+    {
+      to: '/transactions?tab=form',
+      label: 'Catat Transaksi',
+      isActive: location.pathname === '/transactions' && transactionTab !== 'history',
+      isPrimary: true,
+      icon: (
+        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v14M5 12h14" />
+        </svg>
+      )
+    },
+    {
+      to: '/goals',
+      label: 'Target Tabungan',
+      isActive: location.pathname === '/goals',
+      icon: (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <rect width="16" height="11" x="4" y="6.5" rx="2" strokeWidth={2.1} />
+          <path strokeLinecap="round" strokeWidth={2.1} d="M7 10h10M7 14h4" />
         </svg>
       )
     }
@@ -145,85 +193,23 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
         {children}
       </main>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800/90 bg-slate-950/95 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-2 backdrop-blur-xl">
-        <nav className="mx-auto grid w-full max-w-md grid-cols-5 gap-1">
-          
-          {/* 1. Home */}
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
-                isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-              }`
-            }
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-[10px] font-medium mt-0.5">Home</span>
-          </NavLink>
-
-          {/* 2. Transaksi */}
-          <NavLink
-            to="/transactions"
-            className={({ isActive }) =>
-              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
-                isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-              }`
-            }
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span className="text-[10px] font-medium mt-0.5">Transaksi</span>
-          </NavLink>
-
-          {/* 3. AI Assistant */}
-          <NavLink
-            to="/ai-chat"
-            className={({ isActive }) =>
-              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
-                isActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-              }`
-            }
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
-            <span className="text-[10px] font-medium mt-0.5">AI</span>
-          </NavLink>
-
-          {/* 4. Target / Goals */}
-          <NavLink
-            to="/goals"
-            className={({ isActive }) =>
-              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
-                isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-              }`
-            }
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-[10px] font-medium mt-0.5">Target</span>
-          </NavLink>
-
-          {/* 5. Account */}
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
-                isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-              }`
-            }
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A8.966 8.966 0 0112 15c2.21 0 4.234.8 5.879 2.129M15 11a3 3 0 10-6 0 3 3 0 006 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-[10px] font-medium mt-0.5">Akun</span>
-          </NavLink>
-
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] md:hidden">
+        <nav className="pointer-events-auto mx-auto grid h-14 w-full max-w-[320px] grid-cols-4 items-center gap-1 rounded-full border border-white/40 bg-zinc-200/95 p-1.5 text-zinc-900 shadow-[0_14px_34px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          {mobileNavItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              aria-label={item.label}
+              title={item.label}
+              className={`flex h-11 min-w-0 items-center justify-center rounded-full transition-all duration-200 ${
+                item.isActive
+                  ? 'bg-zinc-300 text-white shadow-inner'
+                  : 'text-zinc-800 hover:bg-zinc-300/60 active:bg-zinc-300/80'
+              } ${item.isPrimary ? 'text-[1.05rem]' : ''}`}
+            >
+              {item.icon}
+            </Link>
+          ))}
         </nav>
       </div>
 

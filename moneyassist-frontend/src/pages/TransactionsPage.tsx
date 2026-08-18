@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import AuthenticatedLayout from '../components/common/AuthenticatedLayout';
 import { useTransactions } from '../hooks/useTransactions';
 import { Transaction, Category } from '../types';
@@ -18,9 +19,12 @@ const defaultCategories: Category[] = [
 ];
 
 export default function TransactionsPage() {
+  const location = useLocation();
   const { transactions, createTransaction, editTransaction, removeTransaction } = useTransactions();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
+  const formSectionRef = useRef<HTMLDivElement>(null);
+  const historySectionRef = useRef<HTMLDivElement>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -39,6 +43,17 @@ export default function TransactionsPage() {
   // UI States
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const activeTab = new URLSearchParams(location.search).get('tab');
+    const target = activeTab === 'history' ? historySectionRef.current : formSectionRef.current;
+
+    if (target && activeTab) {
+      window.requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [location.search]);
 
   // Handle Form Input Changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -194,7 +209,7 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-6xl mx-auto">
         
         {/* Left Column: Transaction Input Form */}
-        <div className="lg:col-span-5 bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-6 sm:p-7 space-y-6">
+        <div ref={formSectionRef} className="scroll-mt-20 lg:col-span-5 bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-6 sm:p-7 space-y-6">
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <span className="w-1.5 h-4 bg-teal-500 rounded-full"></span>
@@ -375,7 +390,7 @@ export default function TransactionsPage() {
         </div>
 
         {/* Right Column: Daily Transaction History List */}
-        <div className="lg:col-span-7 bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-6 sm:p-7 space-y-6">
+        <div ref={historySectionRef} className="scroll-mt-20 lg:col-span-7 bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-6 sm:p-7 space-y-6">
           
           {/* Header Filters & Search */}
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pb-5 border-b border-slate-800/80">

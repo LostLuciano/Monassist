@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import AuthenticatedLayout from '../components/common/AuthenticatedLayout';
 import ProfileForm from '../components/profile/ProfileForm';
 import SettingsForm from '../components/profile/SettingsForm';
 import IPhoneShortcutCard from '../components/profile/IPhoneShortcutCard';
 
 const ProfilePage: React.FC = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'shortcuts'>('settings');
   const tabs = [
     { id: 'settings', label: 'Telegram' },
     { id: 'shortcuts', label: 'Pintasan' },
     { id: 'profile', label: 'Profil' }
   ] as const;
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(location.search).get('tab');
+    if (requestedTab === 'settings' || requestedTab === 'shortcuts' || requestedTab === 'profile') {
+      setActiveTab(requestedTab);
+    }
+  }, [location.search]);
 
   return (
     <AuthenticatedLayout pageTitle="Akun">

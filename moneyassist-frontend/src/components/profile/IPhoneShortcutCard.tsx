@@ -25,7 +25,7 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
         <div className="min-w-0">
           <h2 className="text-base font-bold text-white">Pintasan iPhone</h2>
           <p className="mt-1 text-xs leading-relaxed text-slate-400">
-            Double Tap ambil screenshot, MoneyAssist baca bukti transaksi, lalu catat pemasukan atau pengeluaran otomatis.
+            Double Tap ambil screenshot bukti transaksi, MoneyAssist baca nominal dan tanggal, lalu catat otomatis.
           </p>
         </div>
       </div>
@@ -53,7 +53,10 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
               Siap dipasang
             </div>
-            <p className="mt-2 truncate text-xs text-slate-300">
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              Shortcut ini langsung kirim screenshot ke MoneyAssist. Telegram dipakai untuk mengenali akun dan mengirim hasil verifikasi.
+            </p>
+            <p className="mt-2 truncate text-xs text-slate-400">
               Terhubung ke ID Telegram <span className="font-mono text-white">{user?.telegram_id}</span>
             </p>
           </div>
@@ -67,9 +70,11 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
 
           <div className="space-y-3">
             {[
-              'Buka file shortcut di iPhone dan pilih Tambahkan Pintasan.',
+              'Kalau pernah pasang versi lama, hapus dulu shortcut Scan MoneyAssist di aplikasi Pintasan.',
+              'Ketuk Unduh Pintasan Personal, buka file di iPhone, lalu pilih Tambahkan Pintasan.',
               'Masuk ke Pengaturan > Aksesibilitas > Sentuh > Ketuk Bagian Belakang.',
-              'Pilih Ketuk Dua Kali, lalu pilih Scan MoneyAssist.'
+              'Pilih Ketuk Dua Kali, lalu pilih Scan MoneyAssist.',
+              'Saat melihat bukti transfer, e-wallet, m-banking, atau struk, ketuk 2x belakang iPhone dan tunggu hasil verifikasi di Telegram.'
             ].map((step, index) => (
               <div key={step} className="flex gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-black text-teal-300">

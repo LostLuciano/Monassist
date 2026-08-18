@@ -362,7 +362,7 @@ export default function DashboardPage() {
             
             {/* Action 1: Catat Transaksi */}
             <button
-              onClick={() => navigate('/transactions')}
+              onClick={() => navigate('/transactions?tab=form')}
               className="bg-slate-900/60 hover:bg-slate-850/80 border border-slate-800/80 hover:border-teal-500/30 rounded-2xl p-5 flex flex-col items-center justify-center text-center transition-all group shadow-sm"
             >
               <div className="w-11 h-11 rounded-2xl bg-slate-800/80 group-hover:bg-teal-500/20 group-hover:text-teal-400 text-slate-300 flex items-center justify-center transition-all mb-3">
@@ -397,7 +397,7 @@ export default function DashboardPage() {
 
           {/* iPhone Shortcut Setup Banner */}
           <div 
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/profile?tab=shortcuts')}
             className="bg-gradient-to-br from-teal-950/40 via-slate-900/60 to-slate-900/90 border border-teal-500/25 hover:border-teal-500/45 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 cursor-pointer transition-all group shadow-sm"
           >
             <div className="flex items-center gap-3.5 min-w-0">
@@ -446,7 +446,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-300">Aktivitas Terbaru</h2>
             <button
-              onClick={() => navigate('/transactions')}
+              onClick={() => navigate('/transactions?tab=history')}
               className="text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors"
             >
               Lihat Semua
@@ -465,7 +465,7 @@ export default function DashboardPage() {
                 return (
                   <div 
                     key={tx.id}
-                    onClick={() => navigate('/transactions')}
+                    onClick={() => navigate('/transactions?tab=history')}
                     className="p-3.5 flex items-center justify-between hover:bg-slate-800/40 rounded-xl cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-3.5">
@@ -497,7 +497,7 @@ export default function DashboardPage() {
               <div className="text-center py-8 text-xs text-slate-500 space-y-2">
                 <p>Belum ada aktivitas transaksi.</p>
                 <button
-                  onClick={() => navigate('/transactions')}
+                  onClick={() => navigate('/transactions?tab=form')}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-teal-400 rounded-xl font-bold text-xs transition-colors"
                 >
                   Catat Transaksi Pertama
