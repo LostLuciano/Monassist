@@ -411,7 +411,7 @@ router.get('/shortcuts/download', (req, res) => {
 });
 
 // POST /shortcuts/upload (Direct screenshot upload from iPhone Shortcut)
-router.post('/shortcuts/upload', upload.single('photo'), async (req, res) => {
+router.post('/shortcuts/upload', upload.any(), async (req, res) => {
   try {
     const token = req.query.token || req.headers['x-api-key'] || (req.header('Authorization') ? req.header('Authorization').replace('Bearer ', '') : null);
     if (!token) {
@@ -441,7 +441,17 @@ router.post('/shortcuts/upload', upload.single('photo'), async (req, res) => {
       if (uRes.rows.length > 0) user = uRes.rows[0];
     }
 
-    if (!req.file || !req.file.buffer) {
+    const uploadedFile = (req.files && req.files.length > 0) ? req.files[0] : (req.file || null);
+    let imageBuffer = uploadedFile ? uploadedFile.buffer : null;
+    let mimeType = uploadedFile ? (uploadedFile.mimetype || 'image/jpeg') : 'image/jpeg';
+
+    if (!imageBuffer && req.body && req.body.photo) {
+      if (typeof req.body.photo === 'string' && req.body.photo.includes('base64')) {
+        imageBuffer = Buffer.from(req.body.photo.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      }
+    }
+
+    if (!imageBuffer) {
       return res.status(400).json({ success: false, message: 'File gambar screenshot wajib disertakan.' });
     }
 
@@ -451,8 +461,8 @@ router.post('/shortcuts/upload', upload.single('photo'), async (req, res) => {
 
     const filePart = {
       inlineData: {
-        data: req.file.buffer.toString('base64'),
-        mimeType: req.file.mimetype || 'image/jpeg'
+        data: imageBuffer.toString('base64'),
+        mimeType: mimeType
       }
     };
 
