@@ -282,12 +282,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <TransactionCalendar
-          transactions={calendarTransactions}
-          month={calendarMonth}
-          onMonthChange={setCalendarMonth}
-        />
-
         {/* ========================================================= */}
         {/* 2. RINGKASAN DALAM SATU CARD (Unified Balance Card) */}
         {/* ========================================================= */}
@@ -437,7 +431,16 @@ export default function DashboardPage() {
         </div>
 
         {/* ========================================================= */}
-        {/* 4. AKTIVITAS TERBARU (Clean Transaction List) */}
+        {/* 4. KALENDER TRANSAKSI */}
+        {/* ========================================================= */}
+        <TransactionCalendar
+          transactions={calendarTransactions}
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+        />
+
+        {/* ========================================================= */}
+        {/* 5. AKTIVITAS TERBARU (Clean Transaction List) */}
         {/* ========================================================= */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -505,7 +508,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ========================================================= */}
-        {/* 5. BUDGET BULAN INI (Circular Progress Ring & Condition) */}
+        {/* 6. BUDGET BULAN INI (Circular Progress Ring & Condition) */}
         {/* ========================================================= */}
         <div className="space-y-3">
           <h2 className="text-sm font-bold text-slate-300">Budget Bulan Ini</h2>
@@ -553,7 +556,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ========================================================= */}
-        {/* 6. INSIGHT AI (Subtle Minimalist Card) */}
+        {/* 7. INSIGHT AI (Subtle Minimalist Card) */}
         {/* ========================================================= */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -596,7 +599,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ========================================================= */}
-        {/* 7. EXPANDABLE VISUAL CHARTS (Tren Keuangan) */}
+        {/* 8. EXPANDABLE VISUAL CHARTS (Tren Keuangan) */}
         {/* ========================================================= */}
         <div className="pt-2">
           <button
