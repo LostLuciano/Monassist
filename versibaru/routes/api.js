@@ -1408,13 +1408,7 @@ router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tidak ada file struk yang diupload.' });
     }
 
-    let parsedResult = {
-      amount: 58500,
-      description: 'Makan Siang (Mock Scan)',
-      type: 'expense',
-      category_id: 1,
-      transaction_date: new Date().toISOString().split('T')[0]
-    };
+    let parsedResult;
 
     try {
       const aiSettings = await getUserAiSettings(req.user.id);
@@ -1450,7 +1444,11 @@ Aturan:
         transaction_date: geminiJson.transaction_date || new Date().toISOString().split('T')[0]
       };
     } catch (aiError) {
-      console.error('Vision scan error, using fallback:', aiError.message);
+      console.error('Vision scan error:', aiError.message);
+      return res.status(502).json({
+        success: false,
+        message: 'Gagal menganalisis struk dengan AI. Cek setelan model/API key backend lalu coba lagi.'
+      });
     }
 
     res.json({

@@ -94,7 +94,9 @@ export default function TransactionsPage() {
       });
     } catch (error) {
       console.error('Receipt scan failed:', error);
-      alert('Gagal memindai struk belanja dengan AI. Pastikan file gambar struk jelas dan terbaca.');
+      const message = (error as any)?.response?.data?.message
+        || 'Gagal memindai struk belanja dengan AI. Pastikan file gambar jelas dan setelan AI backend aktif.';
+      alert(message);
     } finally {
       setIsScanning(false);
     }
