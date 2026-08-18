@@ -4,6 +4,7 @@ import { RootState, AppDispatch } from '../../store/store';
 import { setTheme } from '../../store/uiSlice';
 import { updateProfile, fetchCurrentUser } from '../../store/authSlice';
 import api from '../../services/api';
+import { API_BASE_URL } from '../../utils/constants';
 
 const SettingsForm: React.FC = () => {
   const currentTheme = useSelector((state: RootState) => state.ui.theme);
@@ -16,6 +17,8 @@ const SettingsForm: React.FC = () => {
   const [confirmText, setConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const shortcutToken = String(user?.telegram_id || '');
+  const shortcutUploadUrl = `${API_BASE_URL}/shortcuts/upload?token=${encodeURIComponent(shortcutToken)}`;
 
   // Fetch latest user data from server on load
   useEffect(() => {
@@ -493,12 +496,12 @@ const SettingsForm: React.FC = () => {
                     
                     {/* URL */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">URL Endpoint Telegram</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">URL Endpoint MoneyAssist</label>
                       <div className="flex items-center justify-between bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg font-mono text-xs text-teal-300">
-                        <span className="truncate mr-2">https://api.telegram.org/bot7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI/sendPhoto</span>
+                        <span className="truncate mr-2">{shortcutUploadUrl}</span>
                         <button
                           type="button"
-                          onClick={() => handleCopy('https://api.telegram.org/bot7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI/sendPhoto', 'url')}
+                          onClick={() => handleCopy(shortcutUploadUrl, 'url')}
                           className="px-2 py-1 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 text-[10px] font-sans font-bold rounded shrink-0 transition-colors"
                         >
                           {copiedField === 'url' ? 'Disalin! ✓' : 'Salin URL'}
@@ -520,25 +523,9 @@ const SettingsForm: React.FC = () => {
 
                     {/* Form Fields */}
                     <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block">2 Bidang Formulir (Form Fields):</span>
-                      
-                      {/* Field 1: chat_id */}
-                      <div className="flex items-center justify-between bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg text-xs">
-                        <div className="font-mono text-slate-300">
-                          <span className="text-teal-400 font-bold">chat_id</span>: <span className="text-white">{user?.telegram_id || 'ID Telegram Anda'}</span>
-                        </div>
-                        {user?.telegram_id && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(user.telegram_id!.toString(), 'chat_id')}
-                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-teal-400 text-[10px] font-bold rounded transition-colors"
-                          >
-                            {copiedField === 'chat_id' ? 'Disalin! ✓' : 'Salin ID'}
-                          </button>
-                        )}
-                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">1 Bidang Formulir (Form Field):</span>
 
-                      {/* Field 2: photo */}
+                      {/* Field: photo */}
                       <div className="bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg text-xs font-mono text-slate-300">
                         <span className="text-cyan-400 font-bold">photo</span>: <span className="text-teal-300 font-bold bg-teal-500/10 px-2 py-0.5 rounded">Tangkapan Layar (File)</span>
                       </div>

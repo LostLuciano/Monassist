@@ -6,6 +6,10 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const multer = require('multer');
+const {
+  analyzeAndRecordImageTransaction,
+  formatTelegramTransactionReply
+} = require('../services/transactionImageAnalysis');
 
 // Configure multer for file uploads in memory
 const upload = multer({
@@ -271,12 +275,28 @@ router.post('/auth/telegram-disconnect', auth, async (req, res) => {
   }
 });
 
-// GET /shortcuts/download (1-Click Apple Shortcut file generator)
+function getPublicApiBaseUrl(req) {
+  if (process.env.PUBLIC_API_URL) {
+    return process.env.PUBLIC_API_URL.replace(/\/$/, '').replace(/\/api$/, '') + '/api';
+  }
+
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
+  return `${protocol}://${req.get('host')}/api`;
+}
+
+// GET /shortcuts/download (personal Apple Shortcut file generator)
 router.get('/shortcuts/download', (req, res) => {
   try {
-    const chatId = req.query.chat_id || '';
-    const botToken = '7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI';
-    const targetUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+    const shortcutToken = req.query.token || req.query.chat_id || '';
+    if (!shortcutToken) {
+      return res.status(422).json({
+        success: false,
+        message: 'Parameter token atau chat_id wajib diisi untuk membuat pintasan personal.'
+      });
+    }
+
+    const targetUrl = `${getPublicApiBaseUrl(req)}/shortcuts/upload?token=${encodeURIComponent(shortcutToken)}`;
 
     const shortcutPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -309,30 +329,6 @@ router.get('/shortcuts/download', (req, res) => {
 					<dict>
 						<key>WFDictionaryFieldValueItems</key>
 						<array>
-							<dict>
-								<key>WFItemType</key>
-								<integer>0</integer>
-								<key>WFKey</key>
-								<dict>
-									<key>Value</key>
-									<dict>
-										<key>string</key>
-										<string>chat_id</string>
-									</dict>
-									<key>WFSerializationType</key>
-									<string>WFTextTokenString</string>
-								</dict>
-								<key>WFValue</key>
-								<dict>
-									<key>Value</key>
-									<dict>
-										<key>string</key>
-										<string>${chatId}</string>
-									</dict>
-									<key>WFSerializationType</key>
-									<string>WFTextTokenString</string>
-								</dict>
-							</dict>
 							<dict>
 								<key>WFItemType</key>
 								<integer>0</integer>
@@ -425,7 +421,7 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key_moneyassist');
       userId = decoded.id;
     } catch (e) {
-      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1 OR telegram_id = $1', [token]);
+      const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE telegram_id = $1', [token]);
       if (uRes.rows.length > 0) {
         userId = uRes.rows[0].id;
         user = uRes.rows[0];
@@ -446,8 +442,14 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
     let mimeType = uploadedFile ? (uploadedFile.mimetype || 'image/jpeg') : 'image/jpeg';
 
     if (!imageBuffer && req.body && req.body.photo) {
-      if (typeof req.body.photo === 'string' && req.body.photo.includes('base64')) {
-        imageBuffer = Buffer.from(req.body.photo.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      if (typeof req.body.photo === 'string') {
+        const dataUriMatch = req.body.photo.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+        if (dataUriMatch) {
+          mimeType = dataUriMatch[1].toLowerCase();
+          imageBuffer = Buffer.from(dataUriMatch[2], 'base64');
+        } else {
+          imageBuffer = Buffer.from(req.body.photo, 'base64');
+        }
       }
     }
 
@@ -455,68 +457,33 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
       return res.status(400).json({ success: false, message: 'File gambar screenshot wajib disertakan.' });
     }
 
-    // Process image with Gemini Vision AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-    const filePart = {
-      inlineData: {
-        data: imageBuffer.toString('base64'),
-        mimeType: mimeType
-      }
-    };
-
-    const prompt = `Analisis gambar ini secara teliti dan profesional. Gambar ini berupa tangkapan layar transaksi perbankan / struk / pembayaran QRIS / transfer / e-wallet.
-Tentukan apakah ini adalah PEMASUKAN (income) atau PENGELUARAN (expense).
-Ekstrak dan berikan data JSON terstruktur:
-{
-  "amount": <angka nominal total transaksi murni tanpa titik/koma/simbol, contoh: 50000>,
-  "description": "<Nama Merchant / Toko / Pengirim / Penerima / Keterangan Transaksi>",
-  "type": "expense" | "income",
-  "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
-  "transaction_date": "<tanggal transaksi YYYY-MM-DD>"
-}
-Kembalikan HANYA string JSON mentah.`;
-
-    const aiResult = await model.generateContent([prompt, filePart]);
-    let jsonText = aiResult.response.text().trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```json\n|```$/g, '');
-    }
-
-    const geminiJson = JSON.parse(jsonText);
-    const txType = geminiJson.type === 'income' ? 'income' : 'expense';
-    const amount = parseFloat(geminiJson.amount) || 0;
-    const catName = geminiJson.category || 'Lainnya';
-    const desc = geminiJson.description || (txType === 'income' ? 'Pemasukan (Pintasan iPhone)' : 'Pengeluaran (Pintasan iPhone)');
-    const txDate = geminiJson.transaction_date || new Date().toISOString().split('T')[0];
-
-    const dbCatId = await getDbCategoryId(userId, catName, txType);
-
-    const inserted = await db.query(
-      `INSERT INTO transactions (user_id, category_id, type, amount, description, date, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [userId, dbCatId, txType, amount, desc, txDate]
-    );
+    const { analysis, transaction } = await analyzeAndRecordImageTransaction({
+      userId,
+      imageBuffer,
+      mimeType,
+      fallbackDescription: 'Transaksi dari Pintasan iPhone'
+    });
 
     // Push notification to user's Telegram if connected
     if (user && user.telegram_id && process.env.TELEGRAM_BOT_TOKEN) {
       try {
         const bot = require('../bot');
-        const typeLabel = txType === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        const msg = `<b>Transaksi Berhasil Dicatat</b>\n\n` +
-          `• <b>Tipe</b>: ${typeLabel}\n` +
-          `• <b>Nominal</b>: Rp ${Number(amount).toLocaleString('id-ID')}\n` +
-          `• <b>Kategori</b>: ${catName}\n` +
-          `• <b>Keterangan</b>: ${desc}\n` +
-          `• <b>Tanggal</b>: ${txDate}`;
-        await bot.telegram.sendMessage(user.telegram_id.toString(), msg, { parse_mode: 'HTML' });
+        await bot.telegram.sendMessage(
+          user.telegram_id.toString(),
+          formatTelegramTransactionReply(analysis),
+          { parse_mode: 'HTML' }
+        );
       } catch (err) {
         console.error('Telegram push failed, sending plain fallback:', err.message);
         try {
           const bot = require('../bot');
-          await bot.telegram.sendMessage(user.telegram_id.toString(), `Transaksi Berhasil Dicatat:\n• Nominal: Rp ${amount.toLocaleString('id-ID')}\n• Kategori: ${catName}\n• Keterangan: ${desc}`);
+          await bot.telegram.sendMessage(
+            user.telegram_id.toString(),
+            `Transaksi Berhasil Dicatat:\n` +
+            `• Nominal: Rp ${Number(analysis.amount).toLocaleString('id-ID')}\n` +
+            `• Kategori: ${analysis.category}\n` +
+            `• Keterangan: ${analysis.description || '-'}`
+          );
         } catch (e2) {
           console.error('Telegram fallback failed:', e2.message);
         }
@@ -526,11 +493,12 @@ Kembalikan HANYA string JSON mentah.`;
     res.json({
       success: true,
       message: 'Transaksi berhasil dicatat via Pintasan iPhone',
-      data: inserted.rows[0]
+      data: transaction,
+      analysis
     });
   } catch (error) {
     console.error('Shortcut upload error:', error);
-    res.status(500).json({ success: false, message: 'Gagal memproses transaksi: ' + error.message });
+    res.status(error.statusCode || 500).json({ success: false, message: 'Gagal memproses transaksi: ' + error.message });
   }
 });
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
+import { API_BASE_URL } from '../../utils/constants';
 
 interface IPhoneShortcutCardProps {
   onGoToSettings?: () => void;
@@ -11,8 +12,10 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const isTelegramConnected = Boolean(user?.telegram_id);
-  const icloudShortcutUrl = 'https://www.icloud.com/shortcuts/bd0b081e7eb843148c45a9505852d6be';
-  const directServerUrl = `https://monassist.vercel.app/api/shortcuts/upload?token=${user?.telegram_id || ''}`;
+  const telegramBotUrl = 'https://t.me/FinMoneyAssist_bot';
+  const shortcutToken = String(user?.telegram_id || '');
+  const shortcutDownloadUrl = `${API_BASE_URL}/shortcuts/download?token=${encodeURIComponent(shortcutToken)}`;
+  const directServerUrl = `${API_BASE_URL}/shortcuts/upload?token=${encodeURIComponent(shortcutToken)}`;
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -35,11 +38,11 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-white">Pintasan Otomatis iPhone (Double-Tap)</h2>
               <span className="text-[10px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                iCloud Certified 1-Click
+                Telegram Ready
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-              Pintasan resmi yang telah ditandatangani Apple iCloud. Sekali pasang langsung siap digunakan untuk Double-Tap.
+              Ambil screenshot dari iPhone, kirim sebagai gambar, lalu MoneyAssist mencatat transaksi dan mengirim hasilnya ke Telegram.
             </p>
           </div>
         </div>
@@ -86,23 +89,23 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
         /* IF TELEGRAM IS CONNECTED: SHOW READY-TO-USE SHORTCUT & BACK-TAP GUIDE */
         <div className="space-y-6">
           
-          {/* Primary 1-Click iCloud Install Button */}
+          {/* Primary generated shortcut */}
           <div className="bg-gradient-to-r from-teal-950/50 via-slate-900/90 to-cyan-950/50 border border-teal-500/40 rounded-3xl p-6 sm:p-7 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-2xl shadow-teal-950/40">
             <div className="space-y-1.5 max-w-xl">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider">Pintasan Resmi Apple iCloud</span>
-                <span className="text-[10px] font-bold bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full">Approved ✓</span>
+                <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider">Pintasan Personal</span>
+                <span className="text-[10px] font-bold bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full">Tanpa Token Bot</span>
               </div>
               <h3 className="text-base sm:text-lg font-black text-white">
-                Pasang Pintasan ke iPhone (1-Klik Resmi)
+                Pasang Pintasan Upload Server
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Tindakan <em>"Ambil Tangkapan Layar"</em> dan <em>"Kirim ke Server MoneyAssist"</em> sudah terkonfigurasi 100% lengkap. Ketuk tombol untuk langsung menambahkan pintasan.
+                Pintasan ini mengambil screenshot, mengirimnya ke backend MoneyAssist, lalu hasil analisis otomatis dikirim balik ke chat Telegram Anda.
               </p>
             </div>
 
             <a
-              href={icloudShortcutUrl}
+              href={shortcutDownloadUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-4 bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-400 hover:from-teal-300 hover:to-cyan-300 text-slate-950 font-black rounded-2xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2.5 shrink-0 shadow-xl shadow-teal-500/30 hover:scale-[1.02] active:scale-[0.98]"
@@ -110,7 +113,7 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
               <svg className="w-5 h-5 text-slate-950" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 3.5c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.64 1.35-.57.65-1.07 1.71-.93 2.73.99.08 2.03-.49 2.65-1.23z" />
               </svg>
-              <span>Dapatkan Pintasan Resmi iCloud (1-Klik)</span>
+              <span>Unduh Pintasan Personal</span>
             </a>
           </div>
 
@@ -123,9 +126,9 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
               {/* Step 1 */}
               <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
                 <div className="w-7 h-7 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">1</div>
-                <h4 className="text-xs font-bold text-white">Dapatkan Pintasan</h4>
+                <h4 className="text-xs font-bold text-white">Unduh Pintasan</h4>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Klik tombol <strong>"Dapatkan Pintasan Resmi iCloud"</strong> di atas. Di layar iPhone Anda, ketuk <strong>Tambahkan Pintasan</strong>.
+                  Ketuk <strong>"Unduh Pintasan Personal"</strong> di iPhone, lalu pilih <strong>Tambahkan Pintasan</strong>.
                 </p>
               </div>
 
@@ -152,6 +155,15 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
 
           {/* Endpoint Details */}
           <div className="border-t border-slate-800/80 pt-5 space-y-3">
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 leading-relaxed">
+              <span className="font-bold text-white block mb-1">Mode Telegram langsung:</span>
+              Jika Anda membuat pintasan manual, gunakan aksi Telegram untuk mengirim hasil screenshot ke{' '}
+              <a href={telegramBotUrl} target="_blank" rel="noopener noreferrer" className="text-teal-300 hover:underline">
+                @FinMoneyAssist_bot
+              </a>
+              . Bot akan menerima gambar lewat webhook dan memprosesnya dengan alur analisis yang sama.
+            </div>
+
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-400">Endpoint Khusus Akun Anda</span>
               <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">

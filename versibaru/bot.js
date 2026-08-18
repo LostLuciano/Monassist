@@ -1,6 +1,13 @@
 const { Telegraf, Markup } = require('telegraf');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./db');
+const {
+  MAX_IMAGE_BYTES,
+  SUPPORTED_IMAGE_MIME_TYPES,
+  analyzeAndRecordImageTransaction,
+  formatTelegramTransactionReply,
+  validateImageBuffer
+} = require('./services/transactionImageAnalysis');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -296,110 +303,120 @@ Teks input pengguna: "${text}"`;
   }
 });
 
-// Bot Photo Handler (Scan Struk & Screenshot Transaksi)
-bot.on('photo', async (ctx) => {
-  try {
-    const telegramId = ctx.from.id.toString();
-    const userResult = await db.query(
-      `SELECT id, name FROM users WHERE telegram_id = $1`,
-      [telegramId]
-    );
+async function getConnectedTelegramUser(ctx) {
+  const telegramId = ctx.from.id.toString();
+  const userResult = await db.query(
+    `SELECT id, name FROM users WHERE telegram_id = $1`,
+    [telegramId]
+  );
 
-    if (userResult.rows.length === 0) {
+  return userResult.rows[0] || null;
+}
+
+async function downloadTelegramImage(ctx, fileId, declaredMimeType) {
+  const fileUrl = await ctx.telegram.getFileLink(fileId);
+  const response = await fetch(fileUrl.href);
+
+  if (!response.ok) {
+    const error = new Error(`Gagal mengunduh file Telegram: HTTP ${response.status}`);
+    error.statusCode = 502;
+    throw error;
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const responseMimeType = response.headers.get('content-type') || declaredMimeType || 'image/jpeg';
+  const mimeType = validateImageBuffer(buffer, responseMimeType);
+
+  return { buffer, mimeType };
+}
+
+async function handleTelegramImageTransaction(ctx, imageSource) {
+  try {
+    const user = await getConnectedTelegramUser(ctx);
+
+    if (!user) {
       return ctx.reply(
         'Akun Telegram Anda belum terhubung dengan MoneyAssist.\n\n' +
         'Silakan buka menu Setelan di dashboard web untuk mendapatkan kode pairing, lalu kirimkan di sini dengan format:\n/pair KODE_ANDA'
       );
     }
 
-    const user = userResult.rows[0];
-
-    await ctx.reply('Menganalisis dokumen / bukti transaksi Anda...');
+    await ctx.reply('Menganalisis gambar transaksi Anda...');
     await ctx.sendChatAction('typing');
 
-    const photos = ctx.message.photo;
-    const largestPhoto = photos[photos.length - 1];
-    const fileId = largestPhoto.file_id;
-
-    const fileUrl = await ctx.telegram.getFileLink(fileId);
-    const response = await fetch(fileUrl.href);
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // AI Vision Extraction
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-    const filePart = {
-      inlineData: {
-        data: buffer.toString('base64'),
-        mimeType: 'image/jpeg'
-      }
-    };
-
-    const prompt = `Kamu adalah MoneyAssist Vision AI Copilot. Analisis gambar bukti transaksi ini secara teliti dan akurat.
-Gambar bisa berupa: Screenshot m-Banking (BCA, Mandiri, BRI, BNI, Seabank, Jago, dll), E-Wallet (GoPay, OVO, ShopeePay, DANA), Struk Kasir, Invoice, atau Bukti QRIS.
-
-Tentukan apakah ini PEMASUKAN (income) atau PENGELUARAN (expense).
-Ekstrak data JSON terstruktur:
-{
-  "amount": <angka nominal bulat murni tanpa titik/koma>,
-  "description": "<Nama Merchant / Toko / Keterangan Transaksi>",
-  "type": "expense" | "income",
-  "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
-  "transaction_date": "<tanggal transaksi YYYY-MM-DD>",
-  "copilot_note": "<1 kalimat catatan finansial ringkas dan bermanfaat>"
-}
-Kembalikan HANYA format JSON mentah tanpa markdown.`;
-
-    const aiResult = await model.generateContent([prompt, filePart]);
-    let jsonText = aiResult.response.text().trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```json\n|```$/g, '');
-    }
-
-    const geminiJson = JSON.parse(jsonText);
-
-    if (!geminiJson.amount || isNaN(geminiJson.amount)) {
-      return ctx.reply('Nominal transaksi tidak dapat terdeteksi dari gambar. Pastikan angka nominal dan rincian transaksi terbaca jelas.');
-    }
-
-    const txType = geminiJson.type === 'income' ? 'income' : 'expense';
-    const dbCategoryId = await getDbCategoryId(user.id, geminiJson.category || 'Lainnya', txType);
-    const today = new Date().toISOString().split('T')[0];
-    const txDate = geminiJson.transaction_date || today;
-
-    await db.query(
-      `INSERT INTO transactions (user_id, category_id, type, amount, description, date, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       RETURNING *`,
-      [
-        user.id,
-        dbCategoryId,
-        txType,
-        geminiJson.amount,
-        geminiJson.description || (txType === 'income' ? 'Pemasukan (Tangkapan Layar)' : 'Pengeluaran (Tangkapan Layar)'),
-        txDate
-      ]
+    const { buffer, mimeType } = await downloadTelegramImage(
+      ctx,
+      imageSource.fileId,
+      imageSource.mimeType
     );
-
-    const typeLabel = txType === 'income' ? 'Pemasukan' : 'Pengeluaran';
-    const noteText = geminiJson.copilot_note ? `\n\n<i>💡 Catatan: ${geminiJson.copilot_note}</i>` : '';
+    const fallbackDescription = imageSource.kind === 'document'
+      ? 'Transaksi dari dokumen Telegram'
+      : 'Transaksi dari foto Telegram';
+    const { analysis } = await analyzeAndRecordImageTransaction({
+      userId: user.id,
+      imageBuffer: buffer,
+      mimeType,
+      fallbackDescription
+    });
 
     await ctx.reply(
-      `<b>Transaksi Berhasil Dicatat</b>\n\n` +
-      `• <b>Tipe</b>: ${typeLabel}\n` +
-      `• <b>Nominal</b>: Rp ${Number(geminiJson.amount).toLocaleString('id-ID')}\n` +
-      `• <b>Kategori</b>: ${geminiJson.category || 'Lainnya'}\n` +
-      `• <b>Keterangan</b>: ${geminiJson.description || '-'}\n` +
-      `• <b>Tanggal</b>: ${txDate}${noteText}`,
+      formatTelegramTransactionReply(analysis),
       { parse_mode: 'HTML' }
     );
 
   } catch (error) {
     console.error('Telegram vision scan error:', error);
+    const statusCode = error.statusCode || 500;
+    if (statusCode === 413 || statusCode === 415 || statusCode === 422 || statusCode === 400) {
+      return ctx.reply(error.message);
+    }
     ctx.reply('Gagal memproses gambar transaksi. Pastikan gambar cukup terang dan terbaca dengan baik.');
   }
+}
+
+// Bot Photo Handler (Scan Struk & Screenshot Transaksi)
+bot.on('photo', async (ctx) => {
+  const photos = ctx.message.photo || [];
+  const largestPhoto = photos[photos.length - 1];
+
+  if (!largestPhoto) {
+    return ctx.reply('Foto tidak ditemukan. Kirim ulang gambar struk atau screenshot transaksi.');
+  }
+
+  if (largestPhoto.file_size && largestPhoto.file_size > MAX_IMAGE_BYTES) {
+    return ctx.reply('Ukuran gambar maksimal 5MB.');
+  }
+
+  return handleTelegramImageTransaction(ctx, {
+    kind: 'photo',
+    fileId: largestPhoto.file_id,
+    mimeType: 'image/jpeg'
+  });
+});
+
+// Bot Document Handler (for images sent as files/original quality)
+bot.on('document', async (ctx) => {
+  const document = ctx.message.document;
+
+  if (!document) {
+    return ctx.reply('Dokumen tidak ditemukan. Kirim ulang gambar struk atau screenshot transaksi.');
+  }
+
+  const mimeType = (document.mime_type || '').toLowerCase();
+  if (!SUPPORTED_IMAGE_MIME_TYPES.has(mimeType)) {
+    return ctx.reply('Dokumen harus berupa gambar JPG, PNG, atau WEBP.');
+  }
+
+  if (document.file_size && document.file_size > MAX_IMAGE_BYTES) {
+    return ctx.reply('Ukuran gambar maksimal 5MB.');
+  }
+
+  return handleTelegramImageTransaction(ctx, {
+    kind: 'document',
+    fileId: document.file_id,
+    mimeType
+  });
 });
 
 // Category resolver

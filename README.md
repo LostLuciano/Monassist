@@ -293,6 +293,18 @@ GET    /api/chat/history
 POST   /api/chat/guest-message
 ```
 
+### Telegram Bot & iPhone Shortcut
+```
+GET    /api/webhook/setup
+POST   /api/webhook/telegram
+POST   /api/auth/telegram-code
+POST   /api/auth/telegram-disconnect
+GET    /api/shortcuts/download?token={telegram_id}
+POST   /api/shortcuts/upload?token={telegram_id}
+```
+
+Setup lengkap untuk screenshot iPhone -> Telegram MoneyAssist -> analisis otomatis tersedia di [IPHONE_SHORTCUT_TELEGRAM_SETUP.md](./IPHONE_SHORTCUT_TELEGRAM_SETUP.md).
+
 ### Recommendations
 ```
 GET    /api/recommendations

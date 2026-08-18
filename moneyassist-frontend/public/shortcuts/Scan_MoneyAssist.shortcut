@@ -37,30 +37,6 @@
 									<key>Value</key>
 									<dict>
 										<key>string</key>
-										<string>chat_id</string>
-									</dict>
-									<key>WFSerializationType</key>
-									<string>WFTextTokenString</string>
-								</dict>
-								<key>WFValue</key>
-								<dict>
-									<key>Value</key>
-									<dict>
-										<key>string</key>
-										<string></string>
-									</dict>
-									<key>WFSerializationType</key>
-									<string>WFTextTokenString</string>
-								</dict>
-							</dict>
-							<dict>
-								<key>WFItemType</key>
-								<integer>0</integer>
-								<key>WFKey</key>
-								<dict>
-									<key>Value</key>
-									<dict>
-										<key>string</key>
 										<string>photo</string>
 									</dict>
 									<key>WFSerializationType</key>
@@ -91,7 +67,7 @@
 					<string>WFDictionaryFieldValue</string>
 				</dict>
 				<key>WFURL</key>
-				<string>https://api.telegram.org/bot7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI/sendPhoto</string>
+				<string>https://monassist.vercel.app/api/shortcuts/upload?token=ISI_TELEGRAM_ID_ANDA</string>
 			</dict>
 		</dict>
 		<dict>
