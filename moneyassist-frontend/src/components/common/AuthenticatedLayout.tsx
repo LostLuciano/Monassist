@@ -69,12 +69,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row pb-32 md:pb-0 overflow-x-hidden">
-      
-      {/* Ambient background glows */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-teal-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
-
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row pb-24 md:pb-0 overflow-x-hidden">
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden md:flex md:w-64 bg-slate-900/40 border-r border-slate-900/80 backdrop-blur-xl flex-col p-6 shrink-0 z-20">
         {/* Logo */}
@@ -128,7 +123,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
       </aside>
 
       {/* Mobile Header Top-Bar */}
-      <header className="md:hidden sticky top-0 bg-slate-950/80 border-b border-slate-900/60 backdrop-blur-md px-6 py-4 flex justify-between items-center z-20">
+      <header className="md:hidden sticky top-0 bg-slate-950/95 border-b border-slate-900/80 backdrop-blur-md px-4 py-3 flex justify-between items-center z-20">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-xl flex items-center justify-center shadow-md">
             <span className="text-slate-950 font-black text-sm">M</span>
@@ -146,21 +141,18 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8 relative z-10 max-w-5xl mx-auto w-full">
+      <main className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-8 relative z-10 max-w-5xl mx-auto w-full">
         {children}
       </main>
 
-      {/* ============================================================ */}
-      {/* 8. MODERN FLOATING PILL BOTTOM NAVIGATION (Mobile) */}
-      {/* ============================================================ */}
-      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex justify-center pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">
-        <nav className="pointer-events-auto bg-slate-900/95 border border-slate-800/90 backdrop-blur-2xl rounded-full px-4 py-2 shadow-2xl shadow-slate-950 flex items-center justify-between gap-1 w-full max-w-md">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-800/90 bg-slate-950/95 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-2 backdrop-blur-xl">
+        <nav className="mx-auto grid w-full max-w-md grid-cols-5 gap-1">
           
           {/* 1. Home */}
           <NavLink
             to="/dashboard"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all ${
+              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
                 isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`
             }
@@ -175,7 +167,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
           <NavLink
             to="/transactions"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all ${
+              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
                 isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`
             }
@@ -186,22 +178,11 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
             <span className="text-[10px] font-medium mt-0.5">Transaksi</span>
           </NavLink>
 
-          {/* 3. CENTER PROMINENT FLOATING PLUS BUTTON */}
-          <button
-            onClick={() => navigate('/transactions')}
-            className="w-12 h-12 bg-gradient-to-tr from-teal-400 to-cyan-500 text-slate-950 rounded-full flex items-center justify-center shadow-lg shadow-teal-500/30 hover:scale-105 active:scale-95 transition-transform shrink-0 -my-2"
-            title="Tambah Transaksi Baru"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.8} d="M12 6v12m6-6H6" />
-            </svg>
-          </button>
-
-          {/* 4. AI Assistant */}
+          {/* 3. AI Assistant */}
           <NavLink
             to="/ai-chat"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all ${
+              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
                 isActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`
             }
@@ -212,11 +193,11 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
             <span className="text-[10px] font-medium mt-0.5">AI</span>
           </NavLink>
 
-          {/* 5. Target / Goals */}
+          {/* 4. Target / Goals */}
           <NavLink
             to="/goals"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 px-3 rounded-full transition-all ${
+              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
                 isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
               }`
             }
@@ -225,6 +206,22 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-[10px] font-medium mt-0.5">Target</span>
+          </NavLink>
+
+          {/* 5. Account */}
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              `flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1 transition-all ${
+                isActive ? 'text-teal-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`
+            }
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A8.966 8.966 0 0112 15c2.21 0 4.234.8 5.879 2.129M15 11a3 3 0 10-6 0 3 3 0 006 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-[10px] font-medium mt-0.5">Akun</span>
           </NavLink>
 
         </nav>

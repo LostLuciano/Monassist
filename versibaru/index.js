@@ -27,6 +27,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 
 // Main router
 const apiRouter = require('./routes/api');

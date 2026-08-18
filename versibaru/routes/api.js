@@ -10,7 +10,7 @@ const multer = require('multer');
 // Configure multer for file uploads in memory
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  limits: { fileSize: 12 * 1024 * 1024 }
 });
 
 // Map frontend category IDs to DB category names, icons, and colors
@@ -97,6 +97,47 @@ const generateToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'super_secret_jwt_key_moneyassist', {
     expiresIn: '24h'
   });
+};
+
+const getRequestBaseUrl = (req) => {
+  const forwardedProto = (req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  const protocol = forwardedProto || (req.secure ? 'https' : req.protocol);
+  return `${protocol}://${req.get('host')}`;
+};
+
+const normalizeImageMimeType = (file) => {
+  const mimeType = file?.mimetype || '';
+  if (mimeType.startsWith('image/')) return mimeType;
+
+  const fileName = (file?.originalname || '').toLowerCase();
+  if (fileName.endsWith('.png')) return 'image/png';
+  if (fileName.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+};
+
+const getShortcutImagePayload = (req) => {
+  const uploadedFile = Array.isArray(req.files)
+    ? req.files.find((file) => file.fieldname === 'photo' || file.mimetype?.startsWith('image/')) || req.files[0]
+    : req.file;
+
+  if (uploadedFile?.buffer) {
+    return {
+      imageBuffer: uploadedFile.buffer,
+      mimeType: normalizeImageMimeType(uploadedFile)
+    };
+  }
+
+  const body = req.body || {};
+  const base64Image = body.photo || body.image || body.file || body.screenshot;
+  if (typeof base64Image === 'string' && base64Image.trim()) {
+    const match = base64Image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    return {
+      imageBuffer: Buffer.from(match ? match[2] : base64Image, 'base64'),
+      mimeType: match ? match[1] : 'image/jpeg'
+    };
+  }
+
+  return { imageBuffer: null, mimeType: 'image/jpeg' };
 };
 
 // Helper for paginated response
@@ -274,9 +315,15 @@ router.post('/auth/telegram-disconnect', auth, async (req, res) => {
 // GET /shortcuts/download (1-Click Apple Shortcut file generator)
 router.get('/shortcuts/download', (req, res) => {
   try {
-    const chatId = req.query.chat_id || '';
-    const botToken = '7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI';
-    const targetUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+    const token = (req.query.token || req.query.chat_id || '').toString().trim();
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token shortcut dibutuhkan. Hubungkan Telegram terlebih dahulu lalu unduh ulang pintasan.'
+      });
+    }
+
+    const targetUrl = `${getRequestBaseUrl(req)}/api/shortcuts/upload?token=${encodeURIComponent(token)}`;
 
     const shortcutPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -309,30 +356,6 @@ router.get('/shortcuts/download', (req, res) => {
 					<dict>
 						<key>WFDictionaryFieldValueItems</key>
 						<array>
-							<dict>
-								<key>WFItemType</key>
-								<integer>0</integer>
-								<key>WFKey</key>
-								<dict>
-									<key>Value</key>
-									<dict>
-										<key>string</key>
-										<string>chat_id</string>
-									</dict>
-									<key>WFSerializationType</key>
-									<string>WFTextTokenString</string>
-								</dict>
-								<key>WFValue</key>
-								<dict>
-									<key>Value</key>
-									<dict>
-										<key>string</key>
-										<string>${chatId}</string>
-									</dict>
-									<key>WFSerializationType</key>
-									<string>WFTextTokenString</string>
-								</dict>
-							</dict>
 							<dict>
 								<key>WFItemType</key>
 								<integer>0</integer>
@@ -376,7 +399,7 @@ router.get('/shortcuts/download', (req, res) => {
 		</dict>
 		<dict>
 			<key>WFWorkflowActionIdentifier</key>
-			<string>is.workflow.actions.vibration</string>
+				<string>is.workflow.actions.vibration</string>
 			<key>WFWorkflowActionParameters</key>
 			<dict/>
 		</dict>
@@ -441,15 +464,7 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
       if (uRes.rows.length > 0) user = uRes.rows[0];
     }
 
-    const uploadedFile = (req.files && req.files.length > 0) ? req.files[0] : (req.file || null);
-    let imageBuffer = uploadedFile ? uploadedFile.buffer : null;
-    let mimeType = uploadedFile ? (uploadedFile.mimetype || 'image/jpeg') : 'image/jpeg';
-
-    if (!imageBuffer && req.body && req.body.photo) {
-      if (typeof req.body.photo === 'string' && req.body.photo.includes('base64')) {
-        imageBuffer = Buffer.from(req.body.photo.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      }
-    }
+    const { imageBuffer, mimeType } = getShortcutImagePayload(req);
 
     if (!imageBuffer) {
       return res.status(400).json({ success: false, message: 'File gambar screenshot wajib disertakan.' });
@@ -487,6 +502,12 @@ Kembalikan HANYA string JSON mentah.`;
     const geminiJson = JSON.parse(jsonText);
     const txType = geminiJson.type === 'income' ? 'income' : 'expense';
     const amount = parseFloat(geminiJson.amount) || 0;
+    if (!amount || Number.isNaN(amount)) {
+      return res.status(422).json({
+        success: false,
+        message: 'Nominal transaksi tidak dapat terdeteksi dari screenshot.'
+      });
+    }
     const catName = geminiJson.category || 'Lainnya';
     const desc = geminiJson.description || (txType === 'income' ? 'Pemasukan (Pintasan iPhone)' : 'Pengeluaran (Pintasan iPhone)');
     const txDate = geminiJson.transaction_date || new Date().toISOString().split('T')[0];
