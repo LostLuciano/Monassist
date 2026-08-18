@@ -278,16 +278,16 @@ Teks input pengguna: "${text}"`;
     );
 
     const typeLabel = txData.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-    const insightText = parsed.copilot_insight ? `\n\n_💡 Insight: ${parsed.copilot_insight}_` : '';
+    const insightText = parsed.copilot_insight ? `\n\n<i>💡 Insight: ${parsed.copilot_insight}</i>` : '';
 
-    ctx.reply(
-      `*Transaksi Berhasil Dicatat*\n\n` +
-      `• Tipe: ${typeLabel}\n` +
-      `• Nominal: Rp ${Number(txData.amount).toLocaleString('id-ID')}\n` +
-      `• Kategori: ${txData.category}\n` +
-      `• Keterangan: ${txData.description || '-'}\n` +
-      `• Tanggal: ${today}${insightText}`,
-      { parse_mode: 'Markdown' }
+    await ctx.reply(
+      `<b>Transaksi Berhasil Dicatat</b>\n\n` +
+      `• <b>Tipe</b>: ${typeLabel}\n` +
+      `• <b>Nominal</b>: Rp ${Number(txData.amount).toLocaleString('id-ID')}\n` +
+      `• <b>Kategori</b>: ${txData.category}\n` +
+      `• <b>Keterangan</b>: ${txData.description || '-'}\n` +
+      `• <b>Tanggal</b>: ${today}${insightText}`,
+      { parse_mode: 'HTML' }
     );
 
   } catch (error) {
@@ -384,16 +384,16 @@ Kembalikan HANYA format JSON mentah tanpa markdown.`;
     );
 
     const typeLabel = txType === 'income' ? 'Pemasukan' : 'Pengeluaran';
-    const noteText = geminiJson.copilot_note ? `\n\n_💡 Catatan: ${geminiJson.copilot_note}_` : '';
+    const noteText = geminiJson.copilot_note ? `\n\n<i>💡 Catatan: ${geminiJson.copilot_note}</i>` : '';
 
-    ctx.reply(
-      `*Transaksi Berhasil Dicatat*\n\n` +
-      `• Tipe: ${typeLabel}\n` +
-      `• Nominal: Rp ${Number(geminiJson.amount).toLocaleString('id-ID')}\n` +
-      `• Kategori: ${geminiJson.category || 'Lainnya'}\n` +
-      `• Keterangan: ${geminiJson.description || '-'}\n` +
-      `• Tanggal: ${txDate}${noteText}`,
-      { parse_mode: 'Markdown' }
+    await ctx.reply(
+      `<b>Transaksi Berhasil Dicatat</b>\n\n` +
+      `• <b>Tipe</b>: ${typeLabel}\n` +
+      `• <b>Nominal</b>: Rp ${Number(geminiJson.amount).toLocaleString('id-ID')}\n` +
+      `• <b>Kategori</b>: ${geminiJson.category || 'Lainnya'}\n` +
+      `• <b>Keterangan</b>: ${geminiJson.description || '-'}\n` +
+      `• <b>Tanggal</b>: ${txDate}${noteText}`,
+      { parse_mode: 'HTML' }
     );
 
   } catch (error) {

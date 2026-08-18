@@ -495,18 +495,21 @@ Kembalikan HANYA string JSON mentah.`;
       try {
         const bot = require('../bot');
         const typeLabel = txType === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        await bot.telegram.sendMessage(
-          user.telegram_id,
-          `*Pintasan iPhone: Transaksi Dicatat*\n\n` +
-          `• Tipe: ${typeLabel}\n` +
-          `• Nominal: Rp ${amount.toLocaleString('id-ID')}\n` +
-          `• Kategori: ${catName}\n` +
-          `• Keterangan: ${desc}\n` +
-          `• Tanggal: ${txDate}`,
-          { parse_mode: 'Markdown' }
-        );
+        const msg = `<b>Transaksi Berhasil Dicatat</b>\n\n` +
+          `• <b>Tipe</b>: ${typeLabel}\n` +
+          `• <b>Nominal</b>: Rp ${Number(amount).toLocaleString('id-ID')}\n` +
+          `• <b>Kategori</b>: ${catName}\n` +
+          `• <b>Keterangan</b>: ${desc}\n` +
+          `• <b>Tanggal</b>: ${txDate}`;
+        await bot.telegram.sendMessage(user.telegram_id.toString(), msg, { parse_mode: 'HTML' });
       } catch (err) {
-        console.error('Telegram push failed:', err);
+        console.error('Telegram push failed, sending plain fallback:', err.message);
+        try {
+          const bot = require('../bot');
+          await bot.telegram.sendMessage(user.telegram_id.toString(), `Transaksi Berhasil Dicatat:\n• Nominal: Rp ${amount.toLocaleString('id-ID')}\n• Kategori: ${catName}\n• Keterangan: ${desc}`);
+        } catch (e2) {
+          console.error('Telegram fallback failed:', e2.message);
+        }
       }
     }
 
