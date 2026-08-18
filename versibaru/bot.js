@@ -44,6 +44,16 @@ const getUserAiSettings = async (userId) => {
   };
 };
 
+const getSafeErrorDetail = (error) => {
+  const raw = String(error?.message || 'Error tidak diketahui.');
+  return raw
+    .replace(/gsk_[A-Za-z0-9_-]+/g, '[groq-key]')
+    .replace(/sk-or-v1-[A-Za-z0-9_-]+/g, '[openrouter-key]')
+    .replace(/AIza[A-Za-z0-9_-]+/g, '[google-key]')
+    .replace(/AQ\.[A-Za-z0-9_-]+/g, '[google-key]')
+    .slice(0, 350);
+};
+
 // Helper to extract pairing code from any input string
 function extractPairingCode(text) {
   if (!text) return null;
@@ -419,7 +429,12 @@ Kembalikan HANYA format JSON mentah tanpa markdown.`;
 
   } catch (error) {
     console.error('Telegram vision scan error:', error);
-    ctx.reply('Gagal memproses gambar transaksi. Pastikan gambar cukup terang dan terbaca dengan baik.');
+    const detail = getSafeErrorDetail(error);
+    ctx.reply(
+      'Gagal memproses gambar transaksi lewat AI.\n\n' +
+      `Detail singkat: ${detail}\n\n` +
+      'Cek setelan model/API key backend, lalu coba kirim ulang gambar.'
+    );
   }
 });
 
