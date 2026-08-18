@@ -246,7 +246,7 @@ const SettingsForm: React.FC = () => {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Integrasi Telegram & Pintasan</h3>
             <span className="text-[10px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2.5 py-1 rounded-full">
-              ⚡ AI Automation
+              AI Automation
             </span>
           </div>
 

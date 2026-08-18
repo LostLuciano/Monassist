@@ -33,7 +33,7 @@ const AIChatPage: React.FC = () => {
         setMessages([
           {
             id: '1',
-            message: `Halo Kak ${user?.name || 'User'}! Saya adalah Asisten AI Keuangan Anda. Saya dapat membantu menganalisis arus kas, memeriksa apakah budget Anda aman, memberikan saran target tabungan, atau mendeteksi pengeluaran berlebih. Ada yang bisa saya bantu hari ini?`,
+            message: `Halo, ${user?.name || 'User'}! Saya adalah Asisten AI Keuangan MoneyAssist. Saya dapat membantu menganalisis arus kas, memeriksa kondisi anggaran Anda, memberikan strategi tabungan, atau mendeteksi pengeluaran berlebih. Ada yang bisa saya bantu hari ini?`,
             sender: 'ai',
             timestamp: new Date().toISOString()
           }
@@ -45,7 +45,7 @@ const AIChatPage: React.FC = () => {
       setMessages([
         {
           id: '1',
-          message: `Halo Kak ${user?.name || 'User'}! Saya adalah Asisten AI Keuangan Anda. Ada yang bisa saya bantu hari ini?`,
+          message: `Halo, ${user?.name || 'User'}! Saya adalah Asisten AI Keuangan MoneyAssist. Ada yang bisa saya bantu hari ini?`,
           sender: 'ai',
           timestamp: new Date().toISOString()
         }
@@ -101,7 +101,7 @@ const AIChatPage: React.FC = () => {
         setMessages([
           {
             id: '1',
-            message: `Riwayat obrolan telah dihapus. Halo Kak ${user?.name || 'User'}! Ada yang bisa saya bantu sekarang?`,
+            message: `Riwayat obrolan telah dibersihkan. Halo, ${user?.name || 'User'}! Ada yang bisa saya bantu sekarang?`,
             sender: 'ai',
             timestamp: new Date().toISOString()
           }

@@ -318,7 +318,7 @@ const VideoScrollHero: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div className="p-3.5 bg-slate-900/70 border border-slate-800/90 rounded-2xl">
               <div className="text-[11px] text-slate-400 font-medium">Klasifikasi AI</div>
-              <div className="text-sm font-extrabold text-emerald-400 mt-0.5">📈 Pemasukan & 📉 Pengeluaran</div>
+              <div className="text-sm font-extrabold text-emerald-400 mt-0.5">Pemasukan & Pengeluaran</div>
             </div>
             <div className="p-3.5 bg-slate-900/70 border border-slate-800/90 rounded-2xl">
               <div className="text-[11px] text-slate-400 font-medium">Kompatibilitas Bank</div>
