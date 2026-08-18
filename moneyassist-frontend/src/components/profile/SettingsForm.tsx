@@ -42,9 +42,9 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
   const [aiOptions, setAiOptions] = useState<AiOptions | null>(null);
   const [aiSettings, setAiSettings] = useState<AiSettings>({
     ai_text_provider: 'google',
-    ai_text_model: 'gemini-3.7-flash',
+    ai_text_model: 'gemini-flash-latest',
     ai_vision_provider: 'google',
-    ai_vision_model: 'gemini-3.7-flash'
+    ai_vision_model: 'gemini-flash-latest'
   });
   const [savingAiSettings, setSavingAiSettings] = useState(false);
 
@@ -367,7 +367,7 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
 
         <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
           <p className="text-xs leading-relaxed text-cyan-100/80">
-            Rekomendasi awal: <strong>Groq GPT-OSS 120B</strong> untuk teks cepat, dan <strong>Google Gemini 3.7 Flash</strong> untuk scan gambar karena mendukung multimodal.
+            Rekomendasi awal: <strong>Groq GPT-OSS 120B</strong> untuk teks cepat, dan <strong>Google Gemini Flash Latest</strong> untuk scan gambar karena cocok dengan API Studio dan mendukung multimodal.
           </p>
         </div>
 

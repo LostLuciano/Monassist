@@ -1,6 +1,7 @@
 const MODEL_OPTIONS = {
   text: {
     google: [
+      { id: 'gemini-flash-latest', label: 'Gemini Flash Latest' },
       { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
       { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
       { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }
@@ -20,6 +21,7 @@ const MODEL_OPTIONS = {
   },
   vision: {
     google: [
+      { id: 'gemini-flash-latest', label: 'Gemini Flash Latest' },
       { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
       { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
       { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }
@@ -34,9 +36,9 @@ const MODEL_OPTIONS = {
 };
 
 const DEFAULT_TEXT_PROVIDER = 'google';
-const DEFAULT_TEXT_MODEL = 'gemini-3.7-flash';
+const DEFAULT_TEXT_MODEL = 'gemini-flash-latest';
 const DEFAULT_VISION_PROVIDER = 'google';
-const DEFAULT_VISION_MODEL = 'gemini-3.7-flash';
+const DEFAULT_VISION_MODEL = 'gemini-flash-latest';
 
 const hasKey = (value) => Boolean(value && !String(value).includes('xxxx') && !String(value).includes('replace_with'));
 
@@ -84,24 +86,28 @@ const callGoogle = async ({ model, prompt, image }) => {
   const apiKey = getProviderKey('google');
   if (!hasKey(apiKey)) throw new Error('Google/Gemini API key belum dikonfigurasi.');
 
-  const input = image
+  const parts = image
     ? [
-        { type: 'text', text: prompt },
+        { text: prompt },
         {
-          type: 'image',
-          data: image.data,
-          mime_type: image.mimeType || 'image/jpeg'
+          inline_data: {
+            mime_type: image.mimeType || 'image/jpeg',
+            data: image.data
+          }
         }
       ]
-    : [{ type: 'text', text: prompt }];
+    : [{ text: prompt }];
 
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: {
-      'x-goog-api-key': apiKey,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-goog-api-key': apiKey
     },
-    body: JSON.stringify({ model, input })
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts }],
+      generationConfig: { temperature: 0.2 }
+    })
   });
 
   if (!response.ok) {
@@ -110,7 +116,12 @@ const callGoogle = async ({ model, prompt, image }) => {
   }
 
   const data = await response.json();
-  return data.output_text || data.output?.[0]?.content?.[0]?.text || '';
+  const partsText = data.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text || '')
+    .join('')
+    .trim();
+
+  return partsText || data.text || '';
 };
 
 const callOpenAICompatible = async ({ provider, model, prompt, image }) => {
@@ -182,18 +193,18 @@ const getCandidateConfigs = (task, selectedConfig) => {
   if (task === 'vision') {
     return uniqueConfigs([
       preferred,
-      { provider: 'openrouter', model: 'openrouter/free', task },
       { provider: 'google', model: DEFAULT_VISION_MODEL, task },
-      { provider: 'openrouter', model: 'google/gemini-3.7-flash', task }
+      { provider: 'openrouter', model: 'openrouter/free', task },
+      { provider: 'openrouter', model: 'google/gemini-2.5-flash', task }
     ]);
   }
 
   return uniqueConfigs([
     preferred,
+    { provider: 'google', model: DEFAULT_TEXT_MODEL, task },
     { provider: 'groq', model: 'openai/gpt-oss-120b', task },
     { provider: 'openrouter', model: 'openrouter/free', task },
-    { provider: 'google', model: DEFAULT_TEXT_MODEL, task },
-    { provider: 'openrouter', model: 'google/gemini-3.7-flash', task }
+    { provider: 'openrouter', model: 'google/gemini-2.5-flash', task }
   ]);
 };
 
