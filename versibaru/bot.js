@@ -4,38 +4,43 @@ const db = require('./db');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
+// Professional, Clean Reply Keyboard
 const mainMenuKeyboard = Markup.keyboard([
-  ['📝 Catat Manual', '📸 Upload Struk'],
-  ['📊 Ringkasan Hari Ini', '❓ Bantuan'],
-  ['🔌 Putuskan Akun']
+  ['Catat Transaksi', 'Kirim Bukti / Struk'],
+  ['Ringkasan Hari Ini', 'Panduan & Bantuan'],
+  ['Putuskan Koneksi']
 ]).resize();
-// Bot Commands
+
+// Bot Start Command
 bot.start((ctx) => {
-  const code = ctx.payload; // Start parameter, e.g. /start MA-123456
+  const code = ctx.payload; // Parameter from deep link, e.g. /start MA-123456
   if (code) {
     return handlePairing(ctx, code);
   }
   ctx.reply(
-    `🤖 Halo! Selamat datang di MoneyAssist Bot.\n\n` +
-    `Untuk menghubungkan akun MoneyAssist Anda:\n` +
+    `Selamat datang di MoneyAssist Bot.\n\n` +
+    `Asisten keuangan cerdas untuk mencatat transaksi dan menganalisis arus kas Anda secara otomatis.\n\n` +
+    `Cara Menghubungkan Akun:\n` +
     `1. Buka web dashboard MoneyAssist\n` +
-    `2. Masuk ke halaman Profil / Pengaturan\n` +
-    `3. Salin kode Telegram Pairing\n` +
-    `4. Kirim ke bot ini dengan format: /pair KODE\n\n` +
-    `Setelah terhubung, Anda bisa mencatat transaksi hanya dengan mengirimkan pesan teks di sini!`,
+    `2. Masuk ke halaman Setelan & Profil -> Integrasi Telegram\n` +
+    `3. Klik 'Hubungkan Telegram' untuk mendapatkan kode pairing\n` +
+    `4. Kirimkan pesan di sini dengan format: /pair KODE_ANDA\n\n` +
+    `Setelah terhubung, Anda dapat mencatat transaksi lewat teks atau tangkapan layar m-banking / struk belanja.`,
     mainMenuKeyboard
   );
 });
 
+// Bot Pair Command
 bot.command('pair', (ctx) => {
   const parts = ctx.message.text.split(' ');
   const code = parts[1];
   if (!code) {
-    return ctx.reply('Silakan sertakan kode pairing Anda. Contoh: /pair MA-123456');
+    return ctx.reply('Format salah. Gunakan perintah: /pair KODE_ANDA\nContoh: /pair MA-123456');
   }
   return handlePairing(ctx, code);
 });
 
+// Handle Pairing Logic
 async function handlePairing(ctx, code) {
   try {
     const formattedCode = code.toUpperCase().trim();
@@ -45,7 +50,7 @@ async function handlePairing(ctx, code) {
     );
 
     if (result.rows.length === 0) {
-      return ctx.reply('❌ Kode pairing tidak valid atau sudah kedaluwarsa.');
+      return ctx.reply('Kode pairing tidak valid atau telah kedaluwarsa. Silakan buat kode baru di dashboard web MoneyAssist.');
     }
 
     const user = result.rows[0];
@@ -57,19 +62,20 @@ async function handlePairing(ctx, code) {
     );
 
     ctx.reply(
-      `🎉 Akun MoneyAssist Kak ${user.name} berhasil dihubungkan! Sekarang Kakak bisa mencatat transaksi langsung dari sini.`,
+      `Akun MoneyAssist atas nama ${user.name} berhasil terhubung.\n\n` +
+      `Anda sekarang dapat langsung mencatat pengeluaran atau pemasukan via obrolan teks maupun tangkapan layar transfer/QRIS/struk.`,
       mainMenuKeyboard
     );
   } catch (err) {
     console.error('Pairing error:', err);
-    ctx.reply('❌ Terjadi kesalahan saat menghubungkan akun.');
+    ctx.reply('Terjadi kesalahan saat memproses koneksi akun. Silakan coba kembali beberapa saat lagi.');
   }
 }
 
 // Bot Message Handler
 bot.on('text', async (ctx) => {
   const text = ctx.message.text;
-  if (text.startsWith('/')) return; // Ignore other commands
+  if (text.startsWith('/')) return; // Ignore other slash commands
 
   try {
     // 1. Find user by telegram_id
@@ -81,54 +87,56 @@ bot.on('text', async (ctx) => {
 
     if (userResult.rows.length === 0) {
       return ctx.reply(
-        '⚠️ Akun Anda belum terhubung.\n\n' +
-        'Silakan buka halaman Profil di web MoneyAssist untuk mendapatkan kode pairing, lalu kirimkan di sini dengan format: /pair KODE_ANDA'
+        'Akun Telegram Anda belum terhubung dengan MoneyAssist.\n\n' +
+        'Silakan buka menu Setelan di dashboard web untuk mendapatkan kode pairing, lalu kirimkan ke sini dengan format: /pair KODE_ANDA'
       );
     }
 
     const user = userResult.rows[0];
 
-    // Handle Shortcuts
-    if (text === '🔌 Putuskan Akun' || text.toLowerCase() === '/disconnect') {
+    // Handle Quick Action Buttons
+    if (text === 'Putuskan Koneksi' || text.toLowerCase() === '/disconnect') {
       await db.query(`UPDATE users SET telegram_id = NULL WHERE id = $1`, [user.id]);
       return ctx.reply(
-        '🔌 *Koneksi Terputus*\n\n' +
-        'Akun MoneyAssist Anda telah berhasil diputus dari bot ini.\n' +
-        'Jika Anda ingin menghubungkannya kembali, silakan buat kode pairing baru di dashboard web.',
-        { parse_mode: 'Markdown', reply_markup: { remove_keyboard: true } }
+        'Koneksi Berhasil Diputus.\n\n' +
+        'Akun MoneyAssist Anda telah terputus dari bot ini. Untuk menghubungkan kembali, silakan buat kode pairing baru di dashboard web.',
+        { reply_markup: { remove_keyboard: true } }
       );
     }
-    if (text === '📝 Catat Manual') {
+
+    if (text === 'Catat Transaksi') {
       return ctx.reply(
-        '✍️ *Cara Catat Manual*\n\n' +
-        'Silakan ketik transaksi Anda seperti biasa.\n' +
-        'Contoh:\n' +
-        '• "Beli nasi goreng 20ribu"\n' +
-        '• "Bayar token listrik 100.000"\n' +
-        '• "Gaji cair 5.000.000"',
+        '*Format Pencatatan Manual*\n\n' +
+        'Ketik nominal dan keterangan transaksi Anda secara bebas. Contoh:\n' +
+        '• "Makan siang 35rb"\n' +
+        '• "Beli bensin motor 50.000"\n' +
+        '• "Gaji freelance 2.500.000"\n\n' +
+        'AI akan otomatis mendeteksi tipe transaksi, nominal, dan kategorinya.',
         { parse_mode: 'Markdown' }
       );
     }
-    if (text === '📸 Upload Struk') {
+
+    if (text === 'Kirim Bukti / Struk') {
       return ctx.reply(
-        '📸 *Cara Upload Struk*\n\n' +
-        'Silakan klik ikon lampiran (📎) di kiri bawah, pilih foto struk belanja Kakak, lalu kirimkan ke sini.\n\n' +
-        'Sistem AI kami akan otomatis membaca nominal, kategori, dan daftar barang belanjaan Kakak!',
+        '*Pencatatan Otomatis via Foto / Screenshot*\n\n' +
+        'Kirimkan foto struk belanja fisik atau tangkapan layar (screenshot) bukti transfer m-banking / QRIS.\n\n' +
+        'Vision AI kami akan mengekstrak nominal, nama merchant, dan kategori secara otomatis.',
         { parse_mode: 'Markdown' }
       );
     }
-    if (text === '❓ Bantuan') {
+
+    if (text === 'Panduan & Bantuan') {
       return ctx.reply(
-        '❓ *Bantuan MoneyAssist Bot*\n\n' +
-        'Bot ini terintegrasi langsung dengan dashboard web Kakak.\n\n' +
-        'Anda dapat mencatat pengeluaran/pemasukan dengan:\n' +
-        '1. *Chat Bebas*: Cukup ceritakan pengeluaran Anda (misal: "tadi nongkrong habis 50rb").\n' +
-        '2. *Scan Struk*: Kirimkan foto struk kasir, bot akan mencatat detailnya otomatis.\n\n' +
-        'Gunakan menu tombol di bawah untuk pintasan.',
+        '*Panduan MoneyAssist Bot*\n\n' +
+        '1. *Catat Cepat*: Kirim pesan teks pengeluaran/pemasukan Anda.\n' +
+        '2. *Scan Struk / Bukti Transfer*: Kirim gambar/screenshot untuk pencatatan otomatis.\n' +
+        '3. *Pintasan iPhone*: Anda dapat mengonfigurasi Back-Tap di iPhone agar screenshot langsung terkirim ke bot ini.\n' +
+        '4. *Ringkasan Harian*: Periksa total pemasukan dan pengeluaran hari ini.',
         { parse_mode: 'Markdown' }
       );
     }
-    if (text === '📊 Ringkasan Hari Ini') {
+
+    if (text === 'Ringkasan Hari Ini') {
       const today = new Date().toISOString().split('T')[0];
       const sumResult = await db.query(
         `SELECT type, SUM(amount) as total FROM transactions WHERE user_id = $1 AND date = $2 GROUP BY type`,
@@ -143,10 +151,11 @@ bot.on('text', async (ctx) => {
       });
 
       return ctx.reply(
-        `📊 *Ringkasan Hari Ini (${today})*\n\n` +
-        `📉 Pengeluaran: Rp ${expense.toLocaleString('id-ID')}\n` +
-        `📈 Pemasukan: Rp ${income.toLocaleString('id-ID')}\n\n` +
-        `Sisa Saldo Hari Ini: Rp ${(income - expense).toLocaleString('id-ID')}`,
+        `*Ringkasan Transaksi Hari Ini*\n` +
+        `Tanggal: ${today}\n\n` +
+        `• Total Pemasukan: Rp ${income.toLocaleString('id-ID')}\n` +
+        `• Total Pengeluaran: Rp ${expense.toLocaleString('id-ID')}\n` +
+        `• Arus Kas Bersih: Rp ${(income - expense).toLocaleString('id-ID')}`,
         { parse_mode: 'Markdown' }
       );
     }
@@ -158,28 +167,30 @@ bot.on('text', async (ctx) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-    const prompt = `Kamu adalah Asisten AI Keuangan dari MoneyAssist.
-Tugas kamu adalah menganalisis pesan pengguna. Pesan pengguna bisa berupa chat biasa (pertanyaan, sapaan) ATAU laporan transaksi (misal "beli makan 50rb" atau "gaji cair 5 juta").
+    const prompt = `Kamu adalah Asisten AI Keuangan profesional dari MoneyAssist.
+Tugas kamu adalah menganalisis pesan pengguna. Pesan pengguna bisa berupa chat biasa (pertanyaan finansial, konsultasi) ATAU laporan transaksi (misal: "beli kopi 25rb" atau "gaji masuk 8jt").
+
+Aturan Bahasa: Gunakan bahasa Indonesia profesional, ringkas, dan jelas tanpa emoji berlebihan.
 
 Jika pesan adalah CHAT BIASA (bukan laporan transaksi):
-Berikan jawaban yang ramah, profesional, dan membantu seputar keuangan.
+Berikan jawaban ringkas, informatif, dan profesional.
 Format kembalian (WAJIB JSON mentah):
 {
   "is_transaction": false,
-  "reply": "<jawaban natural kamu>"
+  "reply": "<jawaban profesional>"
 }
 
 Jika pesan mengandung LAPORAN TRANSAKSI keuangan:
-Ekstrak datanya dengan kategori: "Makanan & Minuman", "Transportasi", "Belanja", "Utilitas & Tagihan", "Gaji", "Investasi", "Hiburan", atau "Lainnya".
+Tentukan tipe transaksi ("expense" atau "income") dan kategori: "Makanan & Minuman", "Transportasi", "Belanja", "Utilitas & Tagihan", "Gaji", "Investasi", "Hiburan", atau "Lainnya".
 Format kembalian (WAJIB JSON mentah):
 {
   "is_transaction": true,
-  "reply": "<pesan konfirmasi ramah>",
+  "reply": "<konfirmasi singkat>",
   "transaction_data": {
-    "amount": <angka nominal bulat>,
+    "amount": <angka nominal bulat murni>,
     "type": "expense" | "income",
     "category": "<kategori>",
-    "description": "<keterangan singkat>"
+    "description": "<keterangan transaksi singkat>"
   }
 }
 
@@ -196,14 +207,13 @@ Teks input: "${text}"`;
     const parsed = JSON.parse(jsonText);
 
     if (!parsed.is_transaction) {
-      // It's a normal chat
       return ctx.reply(parsed.reply);
     }
 
     // It is a transaction
     const txData = parsed.transaction_data;
     if (!txData || !txData.amount || isNaN(txData.amount)) {
-      return ctx.reply('⚠️ Maaf, saya tidak dapat mendeteksi nominal transaksi dari pesan tersebut. Mohon sertakan angka nominal yang jelas.');
+      return ctx.reply('Nominal transaksi tidak terdeteksi secara valid. Mohon sertakan angka nominal yang jelas.');
     }
 
     // 3. Resolve category ID in DB
@@ -211,25 +221,27 @@ Teks input: "${text}"`;
 
     // 4. Save transaction to database
     const today = new Date().toISOString().split('T')[0];
-    const insertResult = await db.query(
+    await db.query(
       `INSERT INTO transactions (user_id, category_id, type, amount, description, date, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
       [user.id, dbCategoryId, txData.type, txData.amount, txData.description || 'Transaksi Telegram', today]
     );
 
-    const icon = txData.type === 'income' ? '📈' : '📉';
+    const typeLabel = txData.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
     ctx.reply(
-      `${parsed.reply}\n\n` +
-      `✅ ${icon} Transaksi Berhasil Dicatat!\n` +
-      `• Nominal: Rp ${txData.amount.toLocaleString('id-ID')}\n` +
+      `*Transaksi Berhasil Dicatat*\n\n` +
+      `• Tipe: ${typeLabel}\n` +
+      `• Nominal: Rp ${Number(txData.amount).toLocaleString('id-ID')}\n` +
       `• Kategori: ${txData.category}\n` +
-      `• Keterangan: ${txData.description || 'Transaksi Telegram'}`
+      `• Keterangan: ${txData.description || 'Transaksi Telegram'}\n` +
+      `• Tanggal: ${today}`,
+      { parse_mode: 'Markdown' }
     );
 
   } catch (error) {
     console.error('Telegram bot handling error:', error);
-    ctx.reply('❌ Maaf, terjadi kesalahan saat memproses transaksi Kakak. Coba lagi dengan format nominal yang lebih jelas.');
+    ctx.reply('Maaf, terjadi kendala saat memproses transaksi Anda. Mohon ulangi dengan format yang jelas.');
   }
 });
 
@@ -245,15 +257,15 @@ bot.on('photo', async (ctx) => {
 
     if (userResult.rows.length === 0) {
       return ctx.reply(
-        '⚠️ Akun Anda belum terhubung.\n\n' +
-        'Silakan buka halaman Profil di web MoneyAssist untuk mendapatkan kode pairing, lalu kirimkan di sini dengan format: /pair KODE_ANDA'
+        'Akun Telegram Anda belum terhubung dengan MoneyAssist.\n\n' +
+        'Silakan buka menu Setelan di dashboard web untuk mendapatkan kode pairing, lalu kirimkan di sini dengan format: /pair KODE_ANDA'
       );
     }
 
     const user = userResult.rows[0];
 
     // Inform user that bot is processing
-    await ctx.reply('🔍 Sedang menganalisis gambar/screenshot transaksi Kakak...');
+    await ctx.reply('Menganalisis dokumen / gambar transaksi Anda...');
     await ctx.sendChatAction('typing');
 
     // Get the largest photo size
@@ -280,16 +292,16 @@ bot.on('photo', async (ctx) => {
       }
     };
 
-    const prompt = `Analisis gambar ini secara teliti. Gambar ini bisa berupa:
+    const prompt = `Analisis gambar ini secara teliti dan profesional. Gambar ini bisa berupa:
 1. Tangkapan Layar (Screenshot) dari aplikasi Mobile Banking (BCA, Livin by Mandiri, BRImo, BNI, Seabank, Bank Jago, Jenius, dll).
 2. Screenshot E-Wallet (GoPay, OVO, ShopeePay, DANA, LinkAja, AstraPay, dll).
-3. Bukti Transfer Masuk/Keluar, QRIS Pembayaran, Struk Kasir / Resi Belanja fisik/digital, Tagihan/Invoice, Slip Gaji, atau Mutasi Rekening.
+3. Bukti Transfer Masuk/Keluar, QRIS Pembayaran, Struk Kasir / Resi Belanja, Tagihan/Invoice, Slip Gaji, atau Mutasi Rekening.
 
 Tentukan apakah ini adalah PEMASUKAN (income) atau PENGELUARAN (expense).
 Ekstrak dan berikan data JSON terstruktur dengan format berikut:
 {
   "amount": <angka nominal total transaksi murni tanpa titik/koma/simbol mata uang, contoh: 58500>,
-  "description": "<Nama Merchant / Toko / Pengirim / Penerima / Keterangan Transaksi>\\n\\nRincian:\\n- <Detail rincian belanjaan atau keterangan transfer>",
+  "description": "<Nama Merchant / Toko / Pengirim / Penerima / Keterangan Transaksi>",
   "type": "expense" | "income",
   "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
   "transaction_date": "<tanggal transaksi dalam format YYYY-MM-DD>"
@@ -307,7 +319,7 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
     const geminiJson = JSON.parse(jsonText);
 
     if (!geminiJson.amount || isNaN(geminiJson.amount)) {
-      return ctx.reply('⚠️ Maaf, saya tidak dapat mendeteksi nominal transaksi dari gambar tersebut. Mohon pastikan angka nominal terlihat jelas.');
+      return ctx.reply('Nominal transaksi tidak dapat terdeteksi dari gambar. Pastikan gambar tangkapan layar atau struk belanja terbaca dengan jelas.');
     }
 
     const txType = geminiJson.type === 'income' ? 'income' : 'expense';
@@ -316,6 +328,9 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
     const dbCategoryId = await getDbCategoryId(user.id, geminiJson.category || 'Lainnya', txType);
 
     // 4. Save transaction to database
+    const today = new Date().toISOString().split('T')[0];
+    const txDate = geminiJson.transaction_date || today;
+
     await db.query(
       `INSERT INTO transactions (user_id, category_id, type, amount, description, date, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -325,26 +340,29 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
         dbCategoryId,
         txType,
         geminiJson.amount,
-        geminiJson.description || (txType === 'income' ? 'Pemasukan (Screenshot)' : 'Pengeluaran (Screenshot)'),
-        geminiJson.transaction_date || new Date().toISOString().split('T')[0]
+        geminiJson.description || (txType === 'income' ? 'Pemasukan (Tangkapan Layar)' : 'Pengeluaran (Tangkapan Layar)'),
+        txDate
       ]
     );
 
-    const icon = txType === 'income' ? '📈 Pemasukan' : '📉 Pengeluaran';
+    const typeLabel = txType === 'income' ? 'Pemasukan' : 'Pengeluaran';
     ctx.reply(
-      `✅ *${icon} Berhasil Dicatat!*\n\n` +
-      `• *Nominal*: Rp ${Number(geminiJson.amount).toLocaleString('id-ID')}\n` +
-      `• *Kategori*: ${geminiJson.category || 'Lainnya'}\n` +
-      `• *Rincian*:\n${geminiJson.description || '-'}`,
+      `*Transaksi Berhasil Dicatat*\n\n` +
+      `• Tipe: ${typeLabel}\n` +
+      `• Nominal: Rp ${Number(geminiJson.amount).toLocaleString('id-ID')}\n` +
+      `• Kategori: ${geminiJson.category || 'Lainnya'}\n` +
+      `• Keterangan: ${geminiJson.description || '-'}\n` +
+      `• Tanggal: ${txDate}`,
       { parse_mode: 'Markdown' }
     );
 
   } catch (error) {
     console.error('Telegram receipt/screenshot scan error:', error);
-    ctx.reply('❌ Gagal menganalisis gambar. Pastikan screenshot atau foto transaksi terlihat jelas.');
+    ctx.reply('Gagal menganalisis gambar. Pastikan foto atau tangkapan layar transaksi terlihat jelas dan coba kirim kembali.');
   }
 });
 
+// Helper function to resolve category ID from database
 async function getDbCategoryId(userId, catName, type) {
   const result = await db.query(
     'SELECT id FROM categories WHERE user_id = $1 AND name = $2',

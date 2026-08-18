@@ -50,6 +50,18 @@ export const updateUserProfile = createAsyncThunk(
   }
 );
 
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/fetchCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await authService.getCurrentUser();
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Gagal mengambil data akun.');
+    }
+  }
+);
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -150,10 +162,19 @@ const authSlice = createSlice({
         state.loading = false;
         if (state.user) {
           state.user = { ...state.user, ...action.payload };
+          localStorage.setItem('user', JSON.stringify(state.user));
         }
       })
       .addCase(updateUserProfile.rejected, (state) => {
         state.loading = false;
+      })
+
+      // Fetch Current User
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        if (action.payload) {
+          state.user = { ...state.user, ...action.payload };
+          localStorage.setItem('user', JSON.stringify(state.user));
+        }
       });
   }
 });

@@ -1,17 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store/store';
+import { RootState, AppDispatch } from '../../store/store';
 import { setTheme } from '../../store/uiSlice';
-import { updateProfile } from '../../store/authSlice';
+import { updateProfile, fetchCurrentUser } from '../../store/authSlice';
 import api from '../../services/api';
 
 const SettingsForm: React.FC = () => {
   const currentTheme = useSelector((state: RootState) => state.ui.theme);
   const { user } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [showIPhoneModal, setShowIPhoneModal] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Fetch latest user data from server on load
+  useEffect(() => {
+    dispatch(fetchCurrentUser());
+  }, [dispatch]);
+
+  // Auto-poll user status if waiting for pairing code to be redeemed on Telegram
+  useEffect(() => {
+    if (user?.telegram_pairing_code && !user?.telegram_id) {
+      const interval = setInterval(() => {
+        dispatch(fetchCurrentUser());
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [user?.telegram_pairing_code, user?.telegram_id, dispatch]);
+
+  const handleManualCheckStatus = async () => {
+    setCheckingStatus(true);
+    try {
+      const res = await dispatch(fetchCurrentUser()).unwrap();
+      if (res?.telegram_id) {
+        alert('Akun Telegram berhasil terhubung!');
+      } else {
+        alert('Belum terdeteksi. Pastikan Anda sudah mengirim perintah /start atau /pair di Telegram.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -25,6 +57,7 @@ const SettingsForm: React.FC = () => {
       const response = await api.post('/auth/telegram-code');
       if (response.data?.success) {
         dispatch(updateProfile({ telegram_pairing_code: response.data.pairing_code }));
+        dispatch(fetchCurrentUser());
       }
     } catch (err: any) {
       console.error(err);
@@ -40,7 +73,8 @@ const SettingsForm: React.FC = () => {
         const response = await api.post('/auth/telegram-disconnect');
         if (response.data?.success) {
           dispatch(updateProfile({ telegram_id: undefined, telegram_pairing_code: undefined }));
-          alert('Koneksi Telegram berhasil diputus!');
+          dispatch(fetchCurrentUser());
+          alert('Koneksi Telegram berhasil diputus.');
         }
       } catch (err: any) {
         console.error(err);
@@ -333,42 +367,62 @@ const SettingsForm: React.FC = () => {
                 </div>
 
                 {user?.telegram_pairing_code && (
-                  <div className="border-t border-slate-900/60 pt-4 space-y-3">
-                    <p className="text-xs font-bold text-slate-300">
-                      Langkah-langkah Menghubungkan:
-                    </p>
+                  <div className="border-t border-slate-900/60 pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-300">
+                        Langkah Menghubungkan:
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] text-teal-400 font-semibold bg-teal-500/10 border border-teal-500/20 px-2.5 py-0.5 rounded-full animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                        Otomatis mendeteksi...
+                      </div>
+                    </div>
+
                     <ol className="text-xs text-slate-400 font-semibold space-y-2 list-decimal list-inside pl-1">
                       <li>
-                        Cari bot Telegram: <a href="https://t.me/FinMoneyAssist_bot" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">@FinMoneyAssist_bot</a> atau klik tautan tersebut.
+                        Buka bot Telegram: <a href="https://t.me/FinMoneyAssist_bot" target="_blank" rel="noopener noreferrer" className="text-teal-400 hover:underline">@FinMoneyAssist_bot</a>
                       </li>
                       <li>
                         Kirim perintah berikut ke bot:
-                        <div className="mt-2 bg-slate-950 border border-slate-855 p-3 rounded-xl flex items-center justify-between font-mono text-white text-xs select-all">
+                        <div className="mt-2 bg-slate-950 border border-slate-800 p-3 rounded-xl flex items-center justify-between font-mono text-white text-xs select-all">
                           <span>/start {user.telegram_pairing_code}</span>
                           <button
                             type="button"
                             onClick={() => {
                               navigator.clipboard.writeText(`/start ${user.telegram_pairing_code}`);
-                              alert('Perintah disalin ke papan klip!');
+                              alert('Perintah disalin ke papan klip.');
                             }}
-                            className="text-[10px] bg-slate-900 hover:bg-slate-850 border border-slate-800 px-2 py-1 rounded text-teal-400 hover:text-teal-300 font-sans font-bold"
+                            className="text-[10px] bg-slate-900 hover:bg-slate-850 border border-slate-800 px-2.5 py-1 rounded text-teal-400 hover:text-teal-300 font-sans font-bold transition-colors"
                           >
                             Salin
                           </button>
                         </div>
                       </li>
                       <li>
-                        Bot akan membalas jika akun berhasil dihubungkan!
+                        Bot akan mengonfirmasi saat akun berhasil dihubungkan.
                       </li>
                     </ol>
-                    <div className="flex justify-end mt-2">
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-900/60">
+                      <button
+                        type="button"
+                        disabled={checkingStatus}
+                        onClick={handleManualCheckStatus}
+                        className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className={`w-3.5 h-3.5 text-teal-400 ${checkingStatus ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>{checkingStatus ? 'Memeriksa...' : 'Periksa Status Koneksi'}</span>
+                      </button>
+
                       <button
                         type="button"
                         disabled={generatingCode}
                         onClick={handleGenerateTelegramCode}
-                        className="text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors"
+                        className="text-xs font-bold text-slate-400 hover:text-teal-300 transition-colors"
                       >
-                        {generatingCode ? 'Membuat Ulang...' : 'Buat Ulang Kode'}
+                        {generatingCode ? 'Membuat...' : 'Buat Ulang Kode'}
                       </button>
                     </div>
                   </div>
