@@ -233,7 +233,7 @@ Teks input: "${text}"`;
   }
 });
 
-// Bot Photo Handler (Scan Struk Belanja)
+// Bot Photo Handler (Scan Struk & Screenshot Transaksi)
 bot.on('photo', async (ctx) => {
   try {
     // 1. Find user by telegram_id
@@ -253,7 +253,7 @@ bot.on('photo', async (ctx) => {
     const user = userResult.rows[0];
 
     // Inform user that bot is processing
-    await ctx.reply('🔍 Sedang menganalisis struk belanja Kakak...');
+    await ctx.reply('🔍 Sedang menganalisis gambar/screenshot transaksi Kakak...');
     await ctx.sendChatAction('typing');
 
     // Get the largest photo size
@@ -269,7 +269,7 @@ bot.on('photo', async (ctx) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 2. Request Gemini to parse the receipt image
+    // 2. Request Gemini to parse the image/screenshot
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
@@ -280,11 +280,17 @@ bot.on('photo', async (ctx) => {
       }
     };
 
-    const prompt = `Analisis gambar struk belanja ini dan berikan data JSON terstruktur dengan format berikut:
+    const prompt = `Analisis gambar ini secara teliti. Gambar ini bisa berupa:
+1. Tangkapan Layar (Screenshot) dari aplikasi Mobile Banking (BCA, Livin by Mandiri, BRImo, BNI, Seabank, Bank Jago, Jenius, dll).
+2. Screenshot E-Wallet (GoPay, OVO, ShopeePay, DANA, LinkAja, AstraPay, dll).
+3. Bukti Transfer Masuk/Keluar, QRIS Pembayaran, Struk Kasir / Resi Belanja fisik/digital, Tagihan/Invoice, Slip Gaji, atau Mutasi Rekening.
+
+Tentukan apakah ini adalah PEMASUKAN (income) atau PENGELUARAN (expense).
+Ekstrak dan berikan data JSON terstruktur dengan format berikut:
 {
-  "amount": <angka nominal total belanja saja, contoh: 58500>,
-  "description": "<Nama Toko>\\n\\nDaftar Belanja:\\n- <Barang 1> (Rp <Harga>)\\n- <Barang 2> (Rp <Harga>)\\n(Sertakan semua barang yang ada di struk beserta harganya menggunakan format baris baru \\\\n)",
-  "type": "expense",
+  "amount": <angka nominal total transaksi murni tanpa titik/koma/simbol mata uang, contoh: 58500>,
+  "description": "<Nama Merchant / Toko / Pengirim / Penerima / Keterangan Transaksi>\\n\\nRincian:\\n- <Detail rincian belanjaan atau keterangan transfer>",
+  "type": "expense" | "income",
   "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
   "transaction_date": "<tanggal transaksi dalam format YYYY-MM-DD>"
 }
@@ -301,11 +307,13 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
     const geminiJson = JSON.parse(jsonText);
 
     if (!geminiJson.amount || isNaN(geminiJson.amount)) {
-      return ctx.reply('⚠️ Maaf, saya tidak dapat mendeteksi nominal total dari struk tersebut. Mohon pastikan foto struk cukup jelas dan nominal total terlihat.');
+      return ctx.reply('⚠️ Maaf, saya tidak dapat mendeteksi nominal transaksi dari gambar tersebut. Mohon pastikan angka nominal terlihat jelas.');
     }
 
+    const txType = geminiJson.type === 'income' ? 'income' : 'expense';
+
     // 3. Resolve category ID in DB
-    const dbCategoryId = await getDbCategoryId(user.id, geminiJson.category || 'Lainnya', 'expense');
+    const dbCategoryId = await getDbCategoryId(user.id, geminiJson.category || 'Lainnya', txType);
 
     // 4. Save transaction to database
     await db.query(
@@ -315,23 +323,25 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
       [
         user.id,
         dbCategoryId,
-        'expense',
+        txType,
         geminiJson.amount,
-        geminiJson.description || 'Scan Struk Telegram',
+        geminiJson.description || (txType === 'income' ? 'Pemasukan (Screenshot)' : 'Pengeluaran (Screenshot)'),
         geminiJson.transaction_date || new Date().toISOString().split('T')[0]
       ]
     );
 
+    const icon = txType === 'income' ? '📈 Pemasukan' : '📉 Pengeluaran';
     ctx.reply(
-      `✅ Resi Belanja Berhasil Dicatat!\n\n` +
-      `• Nominal: Rp ${geminiJson.amount.toLocaleString('id-ID')}\n` +
-      `• Kategori: ${geminiJson.category || 'Lainnya'}\n` +
-      `• Rincian Belanja:\n${geminiJson.description}`
+      `✅ *${icon} Berhasil Dicatat!*\n\n` +
+      `• *Nominal*: Rp ${Number(geminiJson.amount).toLocaleString('id-ID')}\n` +
+      `• *Kategori*: ${geminiJson.category || 'Lainnya'}\n` +
+      `• *Rincian*:\n${geminiJson.description || '-'}`,
+      { parse_mode: 'Markdown' }
     );
 
   } catch (error) {
-    console.error('Telegram receipt scan error:', error);
-    ctx.reply('❌ Gagal menganalisis struk. Pastikan file berupa foto struk belanja yang jelas.');
+    console.error('Telegram receipt/screenshot scan error:', error);
+    ctx.reply('❌ Gagal menganalisis gambar. Pastikan screenshot atau foto transaksi terlihat jelas.');
   }
 });
 

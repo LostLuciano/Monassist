@@ -39,7 +39,8 @@ moneyassist-frontend/.env
 **/dist/
 **/build/
 
-# Local archives and model logs
+# Local archives and raw media files
 brain/
 bckl.rar
+/*.mp4
 
