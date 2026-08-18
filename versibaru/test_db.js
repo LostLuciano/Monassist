@@ -1,7 +1,12 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-console.log('DB URL:', process.env.DATABASE_URL);
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is missing. Set it in .env before running this check.');
+  process.exit(1);
+}
+
+console.log('DB URL: configured');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -22,9 +27,8 @@ async function test() {
     `);
     console.log('Tables in database:', tables.rows.map(r => r.table_name));
 
-    const users = await pool.query('SELECT id, name, email FROM users');
-    console.log('Users count:', users.rows.length);
-    console.log('Users list:', users.rows);
+    const users = await pool.query('SELECT COUNT(*)::int as count FROM users');
+    console.log('Users count:', users.rows[0].count);
   } catch (err) {
     console.error('Database connection error:', err);
   } finally {
