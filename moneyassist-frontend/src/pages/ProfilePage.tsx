@@ -56,7 +56,7 @@ const ProfilePage: React.FC = () => {
         {/* Tab Content */}
         <div className="mt-6 animate-fadeIn">
           {activeTab === 'settings' && <SettingsForm />}
-          {activeTab === 'shortcuts' && <IPhoneShortcutCard />}
+          {activeTab === 'shortcuts' && <IPhoneShortcutCard onGoToSettings={() => setActiveTab('settings')} />}
           {activeTab === 'profile' && <ProfileForm />}
         </div>
       </div>
