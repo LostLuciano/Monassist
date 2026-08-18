@@ -1,6 +1,14 @@
 const { Telegraf, Markup } = require('telegraf');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./db');
+const {
+  DEFAULT_TEXT_PROVIDER,
+  DEFAULT_TEXT_MODEL,
+  DEFAULT_VISION_PROVIDER,
+  DEFAULT_VISION_MODEL,
+  generateText,
+  generateVision,
+  parseJsonResponse
+} = require('./services/aiProvider');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -10,6 +18,32 @@ const mainMenuKeyboard = Markup.keyboard([
   ['Ringkasan Hari Ini', 'Panduan & Pintasan'],
   ['Putuskan Koneksi']
 ]).resize();
+
+const ensureAiSettingsColumns = async () => {
+  await db.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS ai_text_provider VARCHAR(50) DEFAULT '${DEFAULT_TEXT_PROVIDER}',
+    ADD COLUMN IF NOT EXISTS ai_text_model VARCHAR(100) DEFAULT '${DEFAULT_TEXT_MODEL}',
+    ADD COLUMN IF NOT EXISTS ai_vision_provider VARCHAR(50) DEFAULT '${DEFAULT_VISION_PROVIDER}',
+    ADD COLUMN IF NOT EXISTS ai_vision_model VARCHAR(100) DEFAULT '${DEFAULT_VISION_MODEL}'
+  `);
+};
+
+const getUserAiSettings = async (userId) => {
+  await ensureAiSettingsColumns();
+  const result = await db.query(
+    `SELECT ai_text_provider, ai_text_model, ai_vision_provider, ai_vision_model
+     FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = result.rows[0] || {};
+  return {
+    ai_text_provider: row.ai_text_provider || DEFAULT_TEXT_PROVIDER,
+    ai_text_model: row.ai_text_model || DEFAULT_TEXT_MODEL,
+    ai_vision_provider: row.ai_vision_provider || DEFAULT_VISION_PROVIDER,
+    ai_vision_model: row.ai_vision_model || DEFAULT_VISION_MODEL
+  };
+};
 
 // Helper to extract pairing code from any input string
 function extractPairingCode(text) {
@@ -212,9 +246,7 @@ bot.on('text', async (ctx) => {
     // Typing indicator
     await ctx.sendChatAction('typing');
 
-    // 2. Request Gemini Flash to parse the transaction with an intelligent wealth copilot persona
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const aiSettings = await getUserAiSettings(user.id);
 
     const prompt = `Kamu adalah MoneyAssist Copilot, asisten keuangan pribadi yang cerdas, profesional, berwawasan luas, dan asik.
 Tugas kamu adalah menganalisis pesan pengguna dari chat Telegram. Pesan bisa berupa chat biasa (konsultasi finansial, pertanyaan, sapaan) ATAU laporan transaksi (misal: "beli kopi kenangan 28k" atau "dapet bonus 1.5jt").
@@ -249,13 +281,8 @@ Format kembalian (WAJIB JSON mentah):
 
 Teks input pengguna: "${text}"`;
 
-    const aiResult = await model.generateContent(prompt);
-    let jsonText = aiResult.response.text().trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```json\n|```$/g, '');
-    }
-
-    const parsed = JSON.parse(jsonText);
+    const aiText = await generateText({ prompt, settings: aiSettings });
+    const parsed = parseJsonResponse(aiText);
 
     if (!parsed.is_transaction) {
       return ctx.reply(parsed.reply);
@@ -326,16 +353,7 @@ bot.on('photo', async (ctx) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // AI Vision Extraction
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-    const filePart = {
-      inlineData: {
-        data: buffer.toString('base64'),
-        mimeType: 'image/jpeg'
-      }
-    };
+    const aiSettings = await getUserAiSettings(user.id);
 
     const prompt = `Kamu adalah MoneyAssist Vision AI Copilot. Analisis gambar bukti transaksi ini secara teliti dan akurat.
 Gambar bisa berupa: Screenshot m-Banking (BCA, Mandiri, BRI, BNI, Seabank, Jago, dll), E-Wallet (GoPay, OVO, ShopeePay, DANA), Struk Kasir, Invoice, atau Bukti QRIS.
@@ -352,13 +370,15 @@ Ekstrak data JSON terstruktur:
 }
 Kembalikan HANYA format JSON mentah tanpa markdown.`;
 
-    const aiResult = await model.generateContent([prompt, filePart]);
-    let jsonText = aiResult.response.text().trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```json\n|```$/g, '');
-    }
-
-    const geminiJson = JSON.parse(jsonText);
+    const aiText = await generateVision({
+      prompt,
+      image: {
+        data: buffer.toString('base64'),
+        mimeType: 'image/jpeg'
+      },
+      settings: aiSettings
+    });
+    const geminiJson = parseJsonResponse(aiText);
 
     if (!geminiJson.amount || isNaN(geminiJson.amount)) {
       return ctx.reply('Nominal transaksi tidak dapat terdeteksi dari gambar. Pastikan angka nominal dan rincian transaksi terbaca jelas.');

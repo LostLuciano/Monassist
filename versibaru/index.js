@@ -65,7 +65,7 @@ app.get('/', (req, res) => {
             <h1>MoneyAssist Server</h1>
             <p>Ini adalah server backend API & Telegram Bot MoneyAssist. Untuk menggunakan aplikasi web, dashboard keuangan, dan analitik AI, silakan buka aplikasi web utama.</p>
             <a href="https://moneyassist.netlify.app" class="btn">🚀 Buka Web MoneyAssist</a>
-            <div class="meta">PostgreSQL (Neon) • Express.js • Gemini Vision AI</div>
+            <div class="meta">PostgreSQL (Neon) • Express.js • Multi-Provider AI</div>
           </div>
         </body>
       </html>

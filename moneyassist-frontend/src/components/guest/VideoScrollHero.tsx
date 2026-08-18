@@ -261,7 +261,7 @@ const VideoScrollHero: React.FC = () => {
         </h1>
 
         <p className="text-slate-300 text-base sm:text-xl max-w-2xl leading-relaxed mb-8 drop-shadow font-medium">
-          Catat transaksi instan lewat Telegram & Back-Tap iPhone, analisis otomatis dengan Gemini AI, dan pantau rasio tabungan secara real-time.
+          Catat transaksi instan lewat Telegram & Back-Tap iPhone, analisis otomatis dengan AI pilihanmu, dan pantau rasio tabungan secara real-time.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -312,7 +312,7 @@ const VideoScrollHero: React.FC = () => {
           </div>
 
           <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
-            Cukup <strong className="text-cyan-300 font-semibold">Double Tap belakang iPhone</strong> setelah bertransaksi di m-Banking atau QRIS. Tangkapan layar otomatis diproses oleh Gemini Flash Vision tanpa perlu input manual.
+            Cukup <strong className="text-cyan-300 font-semibold">Double Tap belakang iPhone</strong> setelah bertransaksi di m-Banking atau QRIS. Tangkapan layar otomatis diproses oleh model vision pilihanmu tanpa perlu input manual.
           </p>
 
           <div className="grid grid-cols-2 gap-3 pt-1">

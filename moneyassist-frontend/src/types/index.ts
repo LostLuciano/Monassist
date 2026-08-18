@@ -14,6 +14,10 @@ export interface User {
   theme?: string;
   telegram_id?: string;
   telegram_pairing_code?: string;
+  ai_text_provider?: string;
+  ai_text_model?: string;
+  ai_vision_provider?: string;
+  ai_vision_model?: string;
   created_at: string;
 }
 

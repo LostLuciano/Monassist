@@ -9,6 +9,23 @@ interface SettingsFormProps {
   onGoToShortcuts?: () => void;
 }
 
+interface AiModelOption {
+  id: string;
+  label: string;
+}
+
+interface AiOptions {
+  text: Record<string, AiModelOption[]>;
+  vision: Record<string, AiModelOption[]>;
+}
+
+interface AiSettings {
+  ai_text_provider: string;
+  ai_text_model: string;
+  ai_vision_provider: string;
+  ai_vision_model: string;
+}
+
 const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
   const currentTheme = useSelector((state: RootState) => state.ui.theme);
   const { user } = useSelector((state: RootState) => state.auth);
@@ -22,6 +39,14 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
   const [resetting, setResetting] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [aiOptions, setAiOptions] = useState<AiOptions | null>(null);
+  const [aiSettings, setAiSettings] = useState<AiSettings>({
+    ai_text_provider: 'google',
+    ai_text_model: 'gemini-3.7-flash',
+    ai_vision_provider: 'google',
+    ai_vision_model: 'gemini-3.7-flash'
+  });
+  const [savingAiSettings, setSavingAiSettings] = useState(false);
 
   useEffect(() => {
     dispatch(fetchCurrentUser());
@@ -40,6 +65,22 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
     }
   }, [user?.telegram_pairing_code, user?.telegram_id, dispatch]);
 
+  useEffect(() => {
+    const loadAiSettings = async () => {
+      try {
+        const response = await api.get('/ai/settings');
+        if (response.data?.success) {
+          setAiOptions(response.data.data.options);
+          setAiSettings(response.data.data.settings);
+        }
+      } catch (err) {
+        console.error('Failed to load AI settings:', err);
+      }
+    };
+
+    loadAiSettings();
+  }, []);
+
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
@@ -50,6 +91,33 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
     e.preventDefault();
     dispatch(setTheme(theme as any));
     setMessage({ type: 'success', text: 'Tema aplikasi berhasil disimpan.' });
+  };
+
+  const handleAiProviderChange = (task: 'text' | 'vision', provider: string) => {
+    const models = aiOptions?.[task]?.[provider] || [];
+    const firstModel = models[0]?.id || '';
+    setAiSettings(prev => ({
+      ...prev,
+      [task === 'text' ? 'ai_text_provider' : 'ai_vision_provider']: provider,
+      [task === 'text' ? 'ai_text_model' : 'ai_vision_model']: firstModel
+    }));
+  };
+
+  const handleSaveAiSettings = async () => {
+    setSavingAiSettings(true);
+    setMessage(null);
+    try {
+      const response = await api.put('/ai/settings', aiSettings);
+      if (response.data?.success) {
+        setAiSettings(response.data.data);
+        setMessage({ type: 'success', text: 'Model AI berhasil disimpan.' });
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Gagal menyimpan model AI.' });
+    } finally {
+      setSavingAiSettings(false);
+    }
   };
 
   const handleGenerateTelegramCode = async () => {
@@ -231,6 +299,86 @@ const SettingsForm: React.FC<SettingsFormProps> = ({ onGoToShortcuts }) => {
             )}
           </div>
         )}
+      </section>
+
+      <section className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-white">Model AI</h2>
+          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+            Pilih mesin untuk chat dan scan gambar. API key tetap disimpan di backend, bukan di browser.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-bold text-white">Chat & Telegram Teks</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Dipakai untuk asisten AI, chat Telegram, dan analisis transaksi dari teks.
+              </p>
+            </div>
+            <select
+              value={aiSettings.ai_text_provider}
+              onChange={(e) => handleAiProviderChange('text', e.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-teal-500"
+            >
+              {Object.keys(aiOptions?.text || { google: [] }).map((provider) => (
+                <option key={provider} value={provider}>{provider.toUpperCase()}</option>
+              ))}
+            </select>
+            <select
+              value={aiSettings.ai_text_model}
+              onChange={(e) => setAiSettings(prev => ({ ...prev, ai_text_model: e.target.value }))}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-teal-500"
+            >
+              {(aiOptions?.text?.[aiSettings.ai_text_provider] || []).map((model) => (
+                <option key={model.id} value={model.id}>{model.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-bold text-white">Scan Gambar / Struk</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Dipakai untuk upload struk, foto Telegram, dan pintasan iPhone.
+              </p>
+            </div>
+            <select
+              value={aiSettings.ai_vision_provider}
+              onChange={(e) => handleAiProviderChange('vision', e.target.value)}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-teal-500"
+            >
+              {Object.keys(aiOptions?.vision || { google: [] }).map((provider) => (
+                <option key={provider} value={provider}>{provider.toUpperCase()}</option>
+              ))}
+            </select>
+            <select
+              value={aiSettings.ai_vision_model}
+              onChange={(e) => setAiSettings(prev => ({ ...prev, ai_vision_model: e.target.value }))}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-teal-500"
+            >
+              {(aiOptions?.vision?.[aiSettings.ai_vision_provider] || []).map((model) => (
+                <option key={model.id} value={model.id}>{model.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+          <p className="text-xs leading-relaxed text-cyan-100/80">
+            Rekomendasi awal: <strong>Groq GPT-OSS 120B</strong> untuk teks cepat, dan <strong>Google Gemini 3.7 Flash</strong> untuk scan gambar karena mendukung multimodal.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSaveAiSettings}
+          disabled={savingAiSettings || !aiOptions}
+          className="w-full rounded-xl bg-teal-500 px-4 py-3 text-sm font-black text-slate-950 transition-colors hover:bg-teal-400 disabled:bg-slate-800 disabled:text-slate-500 sm:w-auto"
+        >
+          {savingAiSettings ? 'Menyimpan...' : 'Simpan Model AI'}
+        </button>
       </section>
 
       <form onSubmit={handleSaveTheme} className="bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 space-y-4">

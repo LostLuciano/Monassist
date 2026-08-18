@@ -131,7 +131,7 @@ const AIChatPage: React.FC = () => {
               </svg>
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white leading-tight">Gemini AI Assistant</h2>
+              <h2 className="text-sm font-bold text-white leading-tight">MoneyAssist AI Assistant</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                 <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Aktif & Siap Membantu</p>

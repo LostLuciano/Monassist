@@ -4,8 +4,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const auth = require('../middleware/auth');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const multer = require('multer');
+const {
+  MODEL_OPTIONS,
+  DEFAULT_TEXT_PROVIDER,
+  DEFAULT_TEXT_MODEL,
+  DEFAULT_VISION_PROVIDER,
+  DEFAULT_VISION_MODEL,
+  generateText,
+  generateVision,
+  parseJsonResponse
+} = require('../services/aiProvider');
 
 // Configure multer for file uploads in memory
 const upload = multer({
@@ -113,6 +122,37 @@ const normalizeImageMimeType = (file) => {
   if (fileName.endsWith('.png')) return 'image/png';
   if (fileName.endsWith('.webp')) return 'image/webp';
   return 'image/jpeg';
+};
+
+const ensureAiSettingsColumns = async () => {
+  await db.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS ai_text_provider VARCHAR(50) DEFAULT '${DEFAULT_TEXT_PROVIDER}',
+    ADD COLUMN IF NOT EXISTS ai_text_model VARCHAR(100) DEFAULT '${DEFAULT_TEXT_MODEL}',
+    ADD COLUMN IF NOT EXISTS ai_vision_provider VARCHAR(50) DEFAULT '${DEFAULT_VISION_PROVIDER}',
+    ADD COLUMN IF NOT EXISTS ai_vision_model VARCHAR(100) DEFAULT '${DEFAULT_VISION_MODEL}'
+  `);
+};
+
+const getUserAiSettings = async (userId) => {
+  await ensureAiSettingsColumns();
+  const result = await db.query(
+    `SELECT ai_text_provider, ai_text_model, ai_vision_provider, ai_vision_model
+     FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = result.rows[0] || {};
+  return {
+    ai_text_provider: row.ai_text_provider || DEFAULT_TEXT_PROVIDER,
+    ai_text_model: row.ai_text_model || DEFAULT_TEXT_MODEL,
+    ai_vision_provider: row.ai_vision_provider || DEFAULT_VISION_PROVIDER,
+    ai_vision_model: row.ai_vision_model || DEFAULT_VISION_MODEL
+  };
+};
+
+const isValidModelChoice = (task, provider, model) => {
+  const providerOptions = MODEL_OPTIONS[task]?.[provider];
+  return Boolean(providerOptions && providerOptions.some((option) => option.id === model));
 };
 
 const getShortcutImagePayload = (req) => {
@@ -357,16 +397,7 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
       return res.status(400).json({ success: false, message: 'File gambar screenshot wajib disertakan.' });
     }
 
-    // Process image with Gemini Vision AI
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-    const filePart = {
-      inlineData: {
-        data: imageBuffer.toString('base64'),
-        mimeType: mimeType
-      }
-    };
+    const aiSettings = await getUserAiSettings(userId);
 
     const prompt = `Analisis gambar ini secara teliti dan profesional. Gambar ini berupa tangkapan layar transaksi perbankan / struk / pembayaran QRIS / transfer / e-wallet.
 Tentukan apakah ini adalah PEMASUKAN (income) atau PENGELUARAN (expense).
@@ -378,15 +409,20 @@ Ekstrak dan berikan data JSON terstruktur:
   "category": "Makanan & Minuman" | "Transportasi" | "Belanja" | "Utilitas & Tagihan" | "Gaji" | "Investasi" | "Hiburan" | "Lainnya",
   "transaction_date": "<tanggal transaksi YYYY-MM-DD>"
 }
-Kembalikan HANYA string JSON mentah.`;
+Aturan:
+- Jika ada beberapa nominal, pilih nominal akhir/total transaksi.
+- Jangan gunakan angka saldo rekening sebagai amount.
+- Kembalikan HANYA string JSON mentah tanpa markdown.`;
 
-    const aiResult = await model.generateContent([prompt, filePart]);
-    let jsonText = aiResult.response.text().trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/^```json\n|```$/g, '');
-    }
-
-    const geminiJson = JSON.parse(jsonText);
+    const aiText = await generateVision({
+      prompt,
+      image: {
+        data: imageBuffer.toString('base64'),
+        mimeType
+      },
+      settings: aiSettings
+    });
+    const geminiJson = parseJsonResponse(aiText);
     const txType = geminiJson.type === 'income' ? 'income' : 'expense';
     const amount = parseFloat(geminiJson.amount) || 0;
     if (!amount || Number.isNaN(amount)) {
@@ -551,6 +587,63 @@ router.put('/auth/profile', auth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Gagal memperbarui profil: ' + error.message });
+  }
+});
+
+// GET /ai/settings
+router.get('/ai/settings', auth, async (req, res) => {
+  try {
+    const settings = await getUserAiSettings(req.user.id);
+    res.json({
+      success: true,
+      data: {
+        settings,
+        options: MODEL_OPTIONS
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal memuat setelan AI: ' + error.message });
+  }
+});
+
+// PUT /ai/settings
+router.put('/ai/settings', auth, async (req, res) => {
+  try {
+    await ensureAiSettingsColumns();
+    const {
+      ai_text_provider,
+      ai_text_model,
+      ai_vision_provider,
+      ai_vision_model
+    } = req.body;
+
+    if (!isValidModelChoice('text', ai_text_provider, ai_text_model)) {
+      return res.status(422).json({ success: false, message: 'Pilihan model teks tidak valid.' });
+    }
+
+    if (!isValidModelChoice('vision', ai_vision_provider, ai_vision_model)) {
+      return res.status(422).json({ success: false, message: 'Pilihan model scan gambar tidak valid.' });
+    }
+
+    const result = await db.query(
+      `UPDATE users
+       SET ai_text_provider = $1,
+           ai_text_model = $2,
+           ai_vision_provider = $3,
+           ai_vision_model = $4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING ai_text_provider, ai_text_model, ai_vision_provider, ai_vision_model`,
+      [ai_text_provider, ai_text_model, ai_vision_provider, ai_vision_model, req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Setelan model AI berhasil disimpan.',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal menyimpan setelan AI: ' + error.message });
   }
 });
 
@@ -1163,14 +1256,10 @@ router.post(['/chat/send', '/chat/message'], auth, async (req, res) => {
     };
 
     let aiResponse = '';
+    const aiSettings = await getUserAiSettings(req.user.id);
 
-    // Check for Gemini API key
-    if (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('xxxx')) {
-      try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-        const systemPrompt = `Kamu adalah MoneyAssist Copilot, asisten keuangan pribadi AI berkelas dunia.
+    try {
+      const systemPrompt = `Kamu adalah MoneyAssist Copilot, asisten keuangan pribadi AI berkelas dunia.
 Karakter kamu: Sangat cerdas, profesional, berwawasan luas, solutif, dan asik diajak berdiskusi tentang uang dan investasi.
 Gunakan Bahasa Indonesia yang modern, elegan, dan terstruktur dengan poin-poin yang mudah dipahami. Hindari penggunaan emoji yang berlebihan.
 
@@ -1185,13 +1274,9 @@ Pesan Pengguna: "${message}"
 
 Berikan respon yang tajam, actionable (dapat langsung dipraktikkan), dan berikan rekomendasi finansial nyata berdasarkan data di atas jika relevan.`;
 
-        const result = await model.generateContent(systemPrompt);
-        aiResponse = result.response.text();
-      } catch (geminiError) {
-        console.error('Gemini API Error, falling back to mock:', geminiError.message);
-        aiResponse = getMockChatResponse(message, type);
-      }
-    } else {
+      aiResponse = await generateText({ prompt: systemPrompt, settings: aiSettings });
+    } catch (aiError) {
+      console.error('AI provider error, falling back to mock:', aiError.message);
       aiResponse = getMockChatResponse(message, type);
     }
 
@@ -1219,7 +1304,7 @@ Berikan respon yang tajam, actionable (dapat langsung dipraktikkan), dan berikan
   }
 });
 
-// POST /chat/receipt (OCR Scan Receipt with Gemini AI)
+// POST /chat/receipt (OCR / vision scan receipt)
 router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -1234,19 +1319,10 @@ router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
       transaction_date: new Date().toISOString().split('T')[0]
     };
 
-    if (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('xxxx')) {
-      try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    try {
+      const aiSettings = await getUserAiSettings(req.user.id);
 
-        const filePart = {
-          inlineData: {
-            data: req.file.buffer.toString('base64'),
-            mimeType: req.file.mimetype
-          }
-        };
-
-        const prompt = `Analisis gambar struk belanja ini dan berikan data JSON terstruktur dengan format berikut:
+      const prompt = `Analisis gambar struk belanja / bukti transaksi ini dan berikan data JSON terstruktur dengan format berikut:
 {
   "amount": <angka nominal total belanja saja, contoh: 58500>,
   "description": "<Nama Toko>\\n\\nDaftar Belanja:\\n- <Barang 1> (Rp <Harga>)\\n- <Barang 2> (Rp <Harga>)\\n(Sertakan semua barang yang ada di struk beserta harganya menggunakan format baris baru \\\\n)",
@@ -1254,25 +1330,30 @@ router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
   "category_id": <pilih ID kategori yang paling cocok: 1 untuk Konsumsi/Makan, 2 untuk Transportasi, 3 untuk Belanja/Ritel, 4 untuk Tagihan/Utilitas, 7 untuk Hiburan, 8 untuk Lainnya>,
   "transaction_date": "<tanggal transaksi dalam format YYYY-MM-DD>"
 }
-Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
+Aturan:
+- Pilih nominal total akhir, bukan saldo/kembalian.
+- Jika tanggal tidak terbaca, gunakan tanggal hari ini.
+- Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
 
-        const result = await model.generateContent([prompt, filePart]);
-        const responseText = result.response.text();
-        
-        // Clean JSON from code blocks if any
-        const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const geminiJson = JSON.parse(cleanedText);
-        
-        parsedResult = {
-          amount: parseFloat(geminiJson.amount) || 0,
-          description: geminiJson.description || 'Scan Struk Otomatis',
-          type: geminiJson.type || 'expense',
-          category_id: parseInt(geminiJson.category_id) || 8,
-          transaction_date: geminiJson.transaction_date || new Date().toISOString().split('T')[0]
-        };
-      } catch (geminiError) {
-        console.error('Gemini OCR Error, using fallback:', geminiError.message);
-      }
+      const responseText = await generateVision({
+        prompt,
+        image: {
+          data: req.file.buffer.toString('base64'),
+          mimeType: normalizeImageMimeType(req.file)
+        },
+        settings: aiSettings
+      });
+      const geminiJson = parseJsonResponse(responseText);
+
+      parsedResult = {
+        amount: parseFloat(geminiJson.amount) || 0,
+        description: geminiJson.description || 'Scan Struk Otomatis',
+        type: geminiJson.type || 'expense',
+        category_id: parseInt(geminiJson.category_id) || 8,
+        transaction_date: geminiJson.transaction_date || new Date().toISOString().split('T')[0]
+      };
+    } catch (aiError) {
+      console.error('Vision scan error, using fallback:', aiError.message);
     }
 
     res.json({
@@ -1285,7 +1366,7 @@ Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
   }
 });
 
-// POST /chat/guest (Public Guest Chat with Gemini AI on Landing Page)
+// POST /chat/guest (Public guest AI chat on landing page)
 router.post('/chat/guest', async (req, res) => {
   try {
     const { message, type = 'general' } = req.body;
@@ -1295,26 +1376,17 @@ router.post('/chat/guest', async (req, res) => {
 
     let aiResponse = '';
 
-    // Check for Gemini API key
-    if (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('xxxx')) {
-      try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
-        const systemPrompt = `Kamu adalah MoneyAssist, asisten keuangan pribadi bertenaga AI.
+    try {
+      const systemPrompt = `Kamu adalah MoneyAssist, asisten keuangan pribadi bertenaga AI.
 Tugas kamu adalah membantu pengguna mengelola uang, merencanakan target tabungan, dan memberikan keputusan keuangan yang bijak.
 Pengguna saat ini sedang berkunjung di halaman beranda (Landing Page) dan belum masuk (login) ke sistem.
 Karena belum masuk, kamu tidak memiliki data transaksi mereka. Berikan saran keuangan umum yang mendalam, ramah, dan profesional.
 Jika mereka menanyakan tentang data transaksi/keuangan pribadi mereka, jelaskan dengan ramah bahwa mereka harus Login/Register terlebih dahulu agar kamu dapat memindai dan memberikan analisis data personal mereka secara aman.
 Pesan Pengguna: ${message}`;
 
-        const result = await model.generateContent(systemPrompt);
-        aiResponse = result.response.text();
-      } catch (geminiError) {
-        console.error('Gemini API Error for guest, using mock:', geminiError.message);
-        aiResponse = getMockChatResponse(message, type);
-      }
-    } else {
+      aiResponse = await generateText({ prompt: systemPrompt, settings: {} });
+    } catch (aiError) {
+      console.error('AI provider error for guest, using mock:', aiError.message);
       aiResponse = getMockChatResponse(message, type);
     }
 
