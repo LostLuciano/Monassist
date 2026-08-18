@@ -11,7 +11,8 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const isTelegramConnected = Boolean(user?.telegram_id);
-  const telegramWebhookUrl = 'https://api.telegram.org/bot7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI/sendPhoto';
+  const icloudShortcutUrl = 'https://www.icloud.com/shortcuts/bd0b081e7eb843148c45a9505852d6be';
+  const directServerUrl = `https://monassist.vercel.app/api/shortcuts/upload?token=${user?.telegram_id || ''}`;
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -34,11 +35,11 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-white">Pintasan Otomatis iPhone (Double-Tap)</h2>
               <span className="text-[10px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
-                Background Automation
+                iCloud Certified 1-Click
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-              Kirim tangkapan layar transaksi secara otomatis ke Bot Telegram hanya dengan mengetuk 2x punggung iPhone.
+              Pintasan resmi yang telah ditandatangani Apple iCloud. Sekali pasang langsung siap digunakan untuk Double-Tap.
             </p>
           </div>
         </div>
@@ -68,7 +69,7 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-base font-bold text-white">Hubungkan Akun Telegram Terlebih Dahulu</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Fitur Pintasan iPhone mengirimkan tangkapan layar ke bot Telegram Anda. Anda perlu menghubungkan akun Telegram Anda terlebih dahulu agar bot dapat mengenali dan mencatat transaksi ke akun Anda.
+              Fitur Pintasan iPhone membutuhkan akun Telegram yang sudah terhubung agar bot dapat mengenali dan mencatat transaksi ke akun Anda.
             </p>
           </div>
           <div>
@@ -85,129 +86,89 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
         /* IF TELEGRAM IS CONNECTED: SHOW READY-TO-USE SHORTCUT & BACK-TAP GUIDE */
         <div className="space-y-6">
           
-          {/* Quick Launch Button */}
-          <div className="bg-gradient-to-r from-teal-950/40 via-slate-900/80 to-cyan-950/40 border border-teal-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
+          {/* Primary 1-Click iCloud Install Button */}
+          <div className="bg-gradient-to-r from-teal-950/50 via-slate-900/90 to-cyan-950/50 border border-teal-500/40 rounded-3xl p-6 sm:p-7 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-2xl shadow-teal-950/40">
+            <div className="space-y-1.5 max-w-xl">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-teal-400 uppercase tracking-wider">Pintasan Siap Dipasang</span>
-                <span className="text-[10px] font-bold bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full">ID Terpasang: {user?.telegram_id}</span>
+                <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider">Pintasan Resmi Apple iCloud</span>
+                <span className="text-[10px] font-bold bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full">Approved ✓</span>
               </div>
-              <h4 className="text-sm font-extrabold text-white">Pasang Pintasan ke Aplikasi Shortcuts iPhone</h4>
-              <p className="text-xs text-slate-400">
-                Klik tombol untuk langsung membuka aplikasi Pintasan di iPhone Anda.
+              <h3 className="text-base sm:text-lg font-black text-white">
+                Pasang Pintasan ke iPhone (1-Klik Resmi)
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Tindakan <em>"Ambil Tangkapan Layar"</em> dan <em>"Kirim ke Server MoneyAssist"</em> sudah terkonfigurasi 100% lengkap. Ketuk tombol untuk langsung menambahkan pintasan.
               </p>
             </div>
 
             <a
-              href="shortcuts://create-shortcut"
-              className="px-5 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-extrabold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-teal-500/20"
+              href={icloudShortcutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-4 bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-400 hover:from-teal-300 hover:to-cyan-300 text-slate-950 font-black rounded-2xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2.5 shrink-0 shadow-xl shadow-teal-500/30 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              <svg className="w-5 h-5 text-slate-950" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 3.5c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.64 1.35-.57.65-1.07 1.71-.93 2.73.99.08 2.03-.49 2.65-1.23z" />
               </svg>
-              <span>Buka Aplikasi Shortcuts di iPhone</span>
+              <span>Dapatkan Pintasan Resmi iCloud (1-Klik)</span>
             </a>
           </div>
 
-          {/* Step by step Setup Guide */}
+          {/* 3 Simple Setup Steps */}
           <div className="space-y-4 pt-1">
-            <h3 className="text-sm font-bold text-white">Panduan Pembuatan Pintasan (Hanya 2 Tindakan Singkat):</h3>
+            <h3 className="text-sm font-bold text-white">Panduan Aktivasi Cepat (3 Langkah):</h3>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
-              {/* Tindakan 1 */}
-              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">1</span>
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Tindakan 1: Ambil Tangkapan Layar</h4>
-                </div>
-                <p className="text-xs text-slate-400 pl-8 leading-relaxed">
-                  Di aplikasi Pintasan iPhone, ketik <strong className="text-teal-300 font-semibold">Ambil Tangkapan Layar</strong> (atau <em>Take Screenshot</em>) di kolom pencarian bawah lalu pilih.
+              {/* Step 1 */}
+              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
+                <div className="w-7 h-7 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">1</div>
+                <h4 className="text-xs font-bold text-white">Dapatkan Pintasan</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Klik tombol <strong>"Dapatkan Pintasan Resmi iCloud"</strong> di atas. Di layar iPhone Anda, ketuk <strong>Tambahkan Pintasan</strong>.
                 </p>
               </div>
 
-              {/* Tindakan 2 */}
-              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">2</span>
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Tindakan 2: Dapatkan Isi URL (Get Contents of URL)</h4>
-                </div>
-                
-                <div className="pl-8 space-y-3.5">
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Ketik <strong className="text-cyan-300 font-semibold">Dapatkan Isi URL</strong> lalu atur konfigurasinya:
-                  </p>
-
-                  {/* URL */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">URL Endpoint Bot Telegram</label>
-                    <div className="flex items-center justify-between bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl font-mono text-xs text-teal-300">
-                      <span className="truncate mr-2">{telegramWebhookUrl}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(telegramWebhookUrl, 'url')}
-                        className="px-3 py-1 bg-teal-500/20 hover:bg-teal-500/30 text-teal-400 text-xs font-sans font-bold rounded-lg shrink-0 transition-colors"
-                      >
-                        {copiedField === 'url' ? 'Disalin ✓' : 'Salin URL'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Method & Body */}
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl">
-                      <span className="text-[10px] text-slate-500 block">Metode (Method):</span>
-                      <span className="font-bold text-white">POST</span>
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl">
-                      <span className="text-[10px] text-slate-500 block">Badan Permintaan (Body):</span>
-                      <span className="font-bold text-white">Formulir (Form)</span>
-                    </div>
-                  </div>
-
-                  {/* Form Fields */}
-                  <div className="space-y-2 pt-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Tambahkan 2 Baris Bidang Formulir:</span>
-                    
-                    {/* Field 1: chat_id */}
-                    <div className="flex items-center justify-between bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs">
-                      <div className="font-mono text-slate-300">
-                        <span className="text-teal-400 font-bold">chat_id</span>: <span className="text-white font-bold">{user?.telegram_id}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(user!.telegram_id!.toString(), 'chat_id')}
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-750 text-teal-400 text-[10px] font-bold rounded-lg transition-colors"
-                      >
-                        {copiedField === 'chat_id' ? 'Disalin ✓' : 'Salin ID'}
-                      </button>
-                    </div>
-
-                    {/* Field 2: photo */}
-                    <div className="bg-slate-900 border border-slate-800 px-3.5 py-2.5 rounded-xl text-xs font-mono text-slate-300">
-                      <span className="text-cyan-400 font-bold">photo</span>: <span className="text-teal-300 font-bold bg-teal-500/10 px-2 py-0.5 rounded">Tangkapan Layar (Pilih Variabel Tindakan 1)</span>
-                    </div>
-                  </div>
-
-                </div>
+              {/* Step 2 */}
+              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
+                <div className="w-7 h-7 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">2</div>
+                <h4 className="text-xs font-bold text-white">Buka Pengaturan Aksesibilitas</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Buka <strong>Pengaturan</strong> iPhone &gt; <strong>Aksesibilitas</strong> &gt; <strong>Sentuh</strong> &gt; pilih <strong>Ketuk Bagian Belakang (Back Tap)</strong>.
+                </p>
               </div>
 
-              {/* Langkah 3: Back Tap */}
-              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">3</span>
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Aktifkan di Pengaturan Ketuk Belakang (Back Tap)</h4>
-                </div>
-                <div className="pl-8 text-xs text-slate-400 space-y-1.5 leading-relaxed">
-                  <p>1. Buka <strong>Pengaturan</strong> iPhone &gt; <strong>Aksesibilitas</strong> &gt; <strong>Sentuh</strong>.</p>
-                  <p>2. Gulir paling bawah &gt; pilih <strong>Ketuk Bagian Belakang (Back Tap)</strong>.</p>
-                  <p>3. Pilih <strong>Ketuk Dua Kali (Double Tap)</strong> &gt; centang pintasan yang Anda buat.</p>
-                  <p className="text-[11px] text-teal-300 bg-teal-500/10 border border-teal-500/20 p-2.5 rounded-xl mt-2">
-                    Selesai! Sekarang saat Anda melakukan Double Tap di casing iPhone, screenshot akan terkirim otomatis ke bot Telegram di latar belakang.
-                  </p>
-                </div>
+              {/* Step 3 */}
+              <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
+                <div className="w-7 h-7 rounded-full bg-teal-500/20 text-teal-400 font-bold text-xs flex items-center justify-center">3</div>
+                <h4 className="text-xs font-bold text-white">Pilih Ketuk Dua Kali</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Pilih <strong>Ketuk Dua Kali</strong> &gt; gulir ke daftar pintasan dan centang <strong className="text-teal-300 font-mono">MoneyAssist scan</strong>.
+                </p>
               </div>
 
+            </div>
+          </div>
+
+          {/* Endpoint Details */}
+          <div className="border-t border-slate-800/80 pt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400">Endpoint Khusus Akun Anda</span>
+              <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                ID Telegram: {user?.telegram_id}
+              </span>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl flex items-center justify-between font-mono text-xs text-slate-400">
+              <span className="truncate mr-3 text-teal-300">{directServerUrl}</span>
+              <button
+                type="button"
+                onClick={() => handleCopy(directServerUrl, 'endpoint')}
+                className="text-[10px] bg-slate-900 hover:bg-slate-850 px-2.5 py-1 rounded text-teal-400 font-sans font-bold transition-colors shrink-0"
+              >
+                {copiedField === 'endpoint' ? 'Disalin ✓' : 'Salin URL'}
+              </button>
             </div>
           </div>
 
