@@ -271,6 +271,145 @@ router.post('/auth/telegram-disconnect', auth, async (req, res) => {
   }
 });
 
+// GET /shortcuts/download (1-Click Apple Shortcut file generator)
+router.get('/shortcuts/download', (req, res) => {
+  try {
+    const chatId = req.query.chat_id || '';
+    const botToken = '7845347209:AAHTR5Fm-w2qQy46v65v_v9i-yU9N8Qz6zI';
+    const targetUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+
+    const shortcutPlist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>WFWorkflowActions</key>
+	<array>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.takescreenshot</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict/>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.downloadurl</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>ShowHeaders</key>
+				<false/>
+				<key>WFHTTPBodyType</key>
+				<string>Form</string>
+				<key>WFHTTPHeaders</key>
+				<dict/>
+				<key>WFHTTPMethod</key>
+				<string>POST</string>
+				<key>WFFormValues</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>WFDictionaryFieldValueItems</key>
+						<array>
+							<dict>
+								<key>WFItemType</key>
+								<integer>0</integer>
+								<key>WFKey</key>
+								<dict>
+									<key>Value</key>
+									<dict>
+										<key>string</key>
+										<string>chat_id</string>
+									</dict>
+									<key>WFSerializationType</key>
+									<string>WFTextTokenString</string>
+								</dict>
+								<key>WFValue</key>
+								<dict>
+									<key>Value</key>
+									<dict>
+										<key>string</key>
+										<string>${chatId}</string>
+									</dict>
+									<key>WFSerializationType</key>
+									<string>WFTextTokenString</string>
+								</dict>
+							</dict>
+							<dict>
+								<key>WFItemType</key>
+								<integer>0</integer>
+								<key>WFKey</key>
+								<dict>
+									<key>Value</key>
+									<dict>
+										<key>string</key>
+										<string>photo</string>
+									</dict>
+									<key>WFSerializationType</key>
+									<string>WFTextTokenString</string>
+								</dict>
+								<key>WFValue</key>
+								<dict>
+									<key>Value</key>
+									<dict>
+										<key>attachmentsByRange</key>
+										<dict>
+											<key>{0, 1}</key>
+											<dict>
+												<key>Type</key>
+												<string>ActionOutput</string>
+											</dict>
+										</dict>
+										<key>string</key>
+										<string>&#xFFFC;</string>
+									</dict>
+									<key>WFSerializationType</key>
+									<string>WFTextTokenString</string>
+								</dict>
+							</dict>
+						</array>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFDictionaryFieldValue</string>
+				</dict>
+				<key>WFURL</key>
+				<string>${targetUrl}</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.vibration</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict/>
+		</dict>
+	</array>
+	<key>WFWorkflowClientVersion</key>
+	<string>2605.0.5</string>
+	<key>WFWorkflowIcon</key>
+	<dict>
+		<key>WFWorkflowIconGlyphNumber</key>
+		<integer>59789</integer>
+		<key>WFWorkflowIconStartColor</key>
+		<integer>4282601983</integer>
+	</dict>
+	<key>WFWorkflowInputContentItemClasses</key>
+	<array/>
+	<key>WFWorkflowMinimumClientVersion</key>
+	<integer>900</integer>
+	<key>WFWorkflowTypes</key>
+	<array>
+		<string>Watch</string>
+		<string>NCWidget</string>
+	</array>
+</dict>
+</plist>`;
+
+    res.setHeader('Content-Type', 'application/x-apple-shortcut');
+    res.setHeader('Content-Disposition', 'attachment; filename="Scan_MoneyAssist.shortcut"');
+    res.send(Buffer.from(shortcutPlist, 'utf-8'));
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Gagal membuat file shortcut: ' + err.message });
+  }
+});
+
 // POST /shortcuts/upload (Direct screenshot upload from iPhone Shortcut)
 router.post('/shortcuts/upload', upload.single('photo'), async (req, res) => {
   try {
