@@ -356,7 +356,7 @@ bot.on('photo', async (ctx) => {
     const aiSettings = await getUserAiSettings(user.id);
 
     const prompt = `Kamu adalah MoneyAssist Vision AI Copilot. Analisis gambar bukti transaksi ini secara teliti dan akurat.
-Gambar bisa berupa: Screenshot m-Banking (BCA, Mandiri, BRI, BNI, Seabank, Jago, dll), E-Wallet (GoPay, OVO, ShopeePay, DANA), Struk Kasir, Invoice, atau Bukti QRIS.
+Gambar bisa berupa: Screenshot m-Banking (BCA, Mandiri, BRI, BNI, Seabank, Jago, dll), E-Wallet (GoPay, OVO, ShopeePay, DANA), Struk Kasir, Invoice, Bukti QRIS, marketplace/e-commerce, keranjang belanja, checkout, atau detail pesanan.
 
 Tentukan apakah ini PEMASUKAN (income) atau PENGELUARAN (expense).
 Ekstrak data JSON terstruktur:
@@ -368,6 +368,10 @@ Ekstrak data JSON terstruktur:
   "transaction_date": "<tanggal transaksi YYYY-MM-DD>",
   "copilot_note": "<1 kalimat catatan finansial ringkas dan bermanfaat>"
 }
+Aturan khusus:
+- Jika ada banyak nominal, pilih nominal akhir/total transaksi.
+- Untuk marketplace/keranjang/checkout, pilih label Total, Total Pembayaran, Grand Total, atau total pesanan. Jangan pilih harga satuan item.
+- Jangan gunakan angka saldo rekening sebagai amount.
 Kembalikan HANYA format JSON mentah tanpa markdown.`;
 
     const aiText = await generateVision({

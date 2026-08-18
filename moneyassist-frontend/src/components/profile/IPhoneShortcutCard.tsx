@@ -122,7 +122,7 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
               'Tambah tindakan Dapatkan Isi URL atau Get Contents of URL, lalu tempel endpoint MoneyAssist.',
               'Di tindakan Get Contents of URL, buka Tampilkan Lebih Banyak. Pilih Method POST dan Request Body Form.',
               'Tambah field Form bertipe File dengan nama photo, lalu isi nilainya dengan hasil Tangkapan Layar.',
-              'Jalankan sekali dari aplikasi Pintasan dan pilih Izinkan saat iPhone meminta akses screenshot atau internet.',
+              'Jalankan sekali dari aplikasi Pintasan dan pilih Izinkan saat iPhone meminta akses screenshot atau internet. Telegram harus menerima preview gambar lebih dulu, lalu pesan hasil analisis transaksi.',
               'Buka Pengaturan > Aksesibilitas > Sentuh > Ketuk Bagian Belakang > Ketuk Dua Kali, lalu pilih Scan MoneyAssist.'
             ].map((step, index) => (
               <div key={step} className="flex gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
@@ -142,6 +142,13 @@ const IPhoneShortcutCard: React.FC<IPhoneShortcutCardProps> = ({ onGoToSettings 
               <p><span className="font-bold text-teal-300">3.</span> Method: POST</p>
               <p><span className="font-bold text-teal-300">4.</span> Body: Form, field File <code className="rounded bg-slate-900 px-1.5 py-0.5 text-cyan-300">photo</code></p>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+            <p className="text-sm font-bold text-cyan-100">Cara cek kalau masih gagal</p>
+            <p className="mt-2 text-xs leading-relaxed text-cyan-100/75">
+              Di aplikasi Pintasan, jalankan manual dengan tombol Play. Kalau Telegram tidak menerima preview gambar, biasanya field <code className="rounded bg-slate-950/70 px-1.5 py-0.5">photo</code> belum bertipe File atau nilainya belum memakai hasil Ambil Tangkapan Layar.
+            </p>
           </div>
         </div>
       )}

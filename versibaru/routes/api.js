@@ -180,6 +180,40 @@ const getShortcutImagePayload = (req) => {
   return { imageBuffer: null, mimeType: 'image/jpeg' };
 };
 
+const notifyShortcutPhotoReceived = async (user, imageBuffer) => {
+  if (!user?.telegram_id || !process.env.TELEGRAM_BOT_TOKEN || !imageBuffer) {
+    return false;
+  }
+
+  try {
+    const bot = require('../bot');
+    await bot.telegram.sendPhoto(
+      user.telegram_id.toString(),
+      { source: imageBuffer, filename: 'moneyassist-shortcut.jpg' },
+      {
+        caption: 'MoneyAssist menerima screenshot dari Pintasan iPhone. Sedang dianalisis...'
+      }
+    );
+    return true;
+  } catch (error) {
+    console.error('Shortcut Telegram photo preview failed:', error.message);
+    return false;
+  }
+};
+
+const notifyShortcutFailure = async (user, message) => {
+  if (!user?.telegram_id || !process.env.TELEGRAM_BOT_TOKEN) {
+    return;
+  }
+
+  try {
+    const bot = require('../bot');
+    await bot.telegram.sendMessage(user.telegram_id.toString(), message);
+  } catch (error) {
+    console.error('Shortcut Telegram failure notification failed:', error.message);
+  }
+};
+
 // Helper for paginated response
 const getPaginatedResponse = (items, total, page, limit) => {
   const lastPage = Math.ceil(total / limit);
@@ -394,12 +428,14 @@ router.post('/shortcuts/upload', upload.any(), async (req, res) => {
     const { imageBuffer, mimeType } = getShortcutImagePayload(req);
 
     if (!imageBuffer) {
+      await notifyShortcutFailure(user, 'Pintasan iPhone terpanggil, tapi screenshot belum terkirim sebagai file. Pastikan field Form bernama photo bertipe File dan nilainya adalah hasil Ambil Tangkapan Layar.');
       return res.status(400).json({ success: false, message: 'File gambar screenshot wajib disertakan.' });
     }
 
+    const telegramPreviewSent = await notifyShortcutPhotoReceived(user, imageBuffer);
     const aiSettings = await getUserAiSettings(userId);
 
-    const prompt = `Analisis gambar ini secara teliti dan profesional. Gambar ini berupa tangkapan layar transaksi perbankan / struk / pembayaran QRIS / transfer / e-wallet.
+    const prompt = `Analisis gambar ini secara teliti dan profesional. Gambar ini bisa berupa tangkapan layar transaksi perbankan, struk, pembayaran QRIS, transfer, e-wallet, marketplace/e-commerce, keranjang belanja, checkout, atau detail pesanan.
 Tentukan apakah ini adalah PEMASUKAN (income) atau PENGELUARAN (expense).
 Ekstrak dan berikan data JSON terstruktur:
 {
@@ -411,6 +447,7 @@ Ekstrak dan berikan data JSON terstruktur:
 }
 Aturan:
 - Jika ada beberapa nominal, pilih nominal akhir/total transaksi.
+- Untuk screenshot marketplace/keranjang/checkout, pilih angka pada label Total, Total Pembayaran, Grand Total, atau total pesanan. Jangan pilih harga satuan item.
 - Jangan gunakan angka saldo rekening sebagai amount.
 - Kembalikan HANYA string JSON mentah tanpa markdown.`;
 
@@ -426,6 +463,7 @@ Aturan:
     const txType = geminiJson.type === 'income' ? 'income' : 'expense';
     const amount = parseFloat(geminiJson.amount) || 0;
     if (!amount || Number.isNaN(amount)) {
+      await notifyShortcutFailure(user, 'Screenshot dari Pintasan iPhone sudah diterima, tapi nominal transaksi belum bisa dibaca. Coba screenshot yang lebih jelas atau crop area total pembayaran.');
       return res.status(422).json({
         success: false,
         message: 'Nominal transaksi tidak dapat terdeteksi dari screenshot.'
@@ -470,10 +508,22 @@ Aturan:
     res.json({
       success: true,
       message: 'Transaksi berhasil dicatat via Pintasan iPhone',
+      telegram_preview_sent: telegramPreviewSent,
       data: inserted.rows[0]
     });
   } catch (error) {
     console.error('Shortcut upload error:', error);
+    try {
+      const token = req.query.token || req.headers['x-api-key'];
+      if (token) {
+        const uRes = await db.query('SELECT id, name, telegram_id FROM users WHERE id::text = $1 OR telegram_pairing_code = $1 OR telegram_id = $1', [token]);
+        if (uRes.rows.length > 0) {
+          await notifyShortcutFailure(uRes.rows[0], 'Screenshot dari Pintasan iPhone sudah masuk ke server, tapi gagal diproses AI. Cek setelan model/API key backend lalu coba lagi.');
+        }
+      }
+    } catch (notifyError) {
+      console.error('Shortcut failure notify lookup failed:', notifyError.message);
+    }
     res.status(500).json({ success: false, message: 'Gagal memproses transaksi: ' + error.message });
   }
 });
@@ -1322,7 +1372,7 @@ router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
     try {
       const aiSettings = await getUserAiSettings(req.user.id);
 
-      const prompt = `Analisis gambar struk belanja / bukti transaksi ini dan berikan data JSON terstruktur dengan format berikut:
+      const prompt = `Analisis gambar struk belanja / bukti transaksi / marketplace checkout / keranjang belanja ini dan berikan data JSON terstruktur dengan format berikut:
 {
   "amount": <angka nominal total belanja saja, contoh: 58500>,
   "description": "<Nama Toko>\\n\\nDaftar Belanja:\\n- <Barang 1> (Rp <Harga>)\\n- <Barang 2> (Rp <Harga>)\\n(Sertakan semua barang yang ada di struk beserta harganya menggunakan format baris baru \\\\n)",
@@ -1332,6 +1382,7 @@ router.post('/chat/receipt', auth, upload.single('image'), async (req, res) => {
 }
 Aturan:
 - Pilih nominal total akhir, bukan saldo/kembalian.
+- Untuk screenshot marketplace/keranjang/checkout, pilih angka pada label Total, Total Pembayaran, Grand Total, atau total pesanan. Jangan pilih harga satuan item.
 - Jika tanggal tidak terbaca, gunakan tanggal hari ini.
 - Kembalikan HANYA string JSON mentah tanpa markdown, tanpa penjelasan tambahan.`;
 
