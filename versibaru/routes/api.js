@@ -521,6 +521,25 @@ Kembalikan HANYA string JSON mentah.`;
   }
 });
 
+// POST /users/reset-data (Danger Zone: Delete all transaction, goals, and chat data for user)
+router.post('/users/reset-data', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await db.query('DELETE FROM transactions WHERE user_id = $1', [userId]);
+    await db.query('DELETE FROM savings_goals WHERE user_id = $1', [userId]);
+    await db.query('DELETE FROM chat_messages WHERE user_id = $1', [userId]);
+    await db.query('DELETE FROM recommendations WHERE user_id = $1', [userId]);
+
+    res.json({
+      success: true,
+      message: 'Seluruh data transaksi, target tabungan, dan riwayat chat berhasil dibersihkan.'
+    });
+  } catch (error) {
+    console.error('Reset data error:', error);
+    res.status(500).json({ success: false, message: 'Gagal mereset data: ' + error.message });
+  }
+});
+
 // GET /users/summary
 router.get('/users/summary', auth, async (req, res) => {
   try {

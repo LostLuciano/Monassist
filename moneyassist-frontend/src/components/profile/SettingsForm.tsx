@@ -12,6 +12,9 @@ const SettingsForm: React.FC = () => {
   const [generatingCode, setGeneratingCode] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [showIPhoneModal, setShowIPhoneModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [resetting, setResetting] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Fetch latest user data from server on load
@@ -575,23 +578,113 @@ const SettingsForm: React.FC = () => {
         )}
 
         {/* Danger Zone */}
-        <div className="space-y-4 pt-4 border-t border-red-500/20">
-          <h3 className="text-sm font-bold text-rose-500 uppercase tracking-wider">Zona Berbahaya</h3>
-          <div className="flex flex-wrap gap-3">
+        <div className="space-y-4 pt-4 border-t border-rose-500/20">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider">Zona Berbahaya</h3>
+            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">
+              Hapus Data
+            </span>
+          </div>
+
+          <div className="bg-rose-950/20 border border-rose-500/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-white">Hapus Semua Data Transaksi & Riwayat</h4>
+              <p className="text-xs text-slate-400 mt-1">
+                Bersihkan seluruh catatan pengeluaran, pemasukan, target tabungan, dan riwayat chat AI. Akun Anda tetap aktif.
+              </p>
+            </div>
             <button
               type="button"
-              className="py-2.5 px-4 bg-slate-950 hover:bg-slate-850 text-slate-400 border border-slate-850 rounded-xl text-xs font-bold transition-all"
+              onClick={() => setShowResetModal(true)}
+              className="py-2.5 px-4 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 hover:border-rose-500/50 text-rose-300 rounded-xl text-xs font-bold transition-all shrink-0 shadow-sm"
             >
-              Ekspor Semua Data
-            </button>
-            <button
-              type="button"
-              className="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/25 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 rounded-xl text-xs font-bold transition-all"
-            >
-              Hapus Akun Permanen
+              Hapus Semua Data
             </button>
           </div>
         </div>
+
+        {/* RESET DATA CONFIRMATION MODAL */}
+        {showResetModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+            <div className="bg-slate-900 border border-rose-500/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6">
+              
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Konfirmasi Hapus Semua Data</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Apakah Anda yakin ingin menghapus seluruh data transaksi, anggaran, target tabungan, dan riwayat chat? Tindakan ini <strong>tidak dapat dibatalkan</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl space-y-2">
+                <label className="text-xs font-bold text-slate-300 block">
+                  Ketik kata <span className="text-rose-400 font-mono">HAPUS</span> di bawah untuk melanjutkan:
+                </label>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="Ketik HAPUS"
+                  className="w-full bg-slate-900 border border-slate-800 focus:border-rose-500 rounded-xl px-4 py-2.5 text-sm text-white font-mono placeholder:text-slate-600 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setConfirmText('');
+                  }}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded-xl text-xs font-bold transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={confirmText.trim().toUpperCase() !== 'HAPUS' || resetting}
+                  onClick={async () => {
+                    setResetting(true);
+                    try {
+                      const res = await api.post('/users/reset-data');
+                      if (res.data?.success) {
+                        alert('Semua data transaksi dan target berhasil dibersihkan.');
+                        setShowResetModal(false);
+                        setConfirmText('');
+                        dispatch(fetchCurrentUser());
+                        window.location.reload();
+                      }
+                    } catch (err: any) {
+                      console.error(err);
+                      alert('Gagal mereset data: ' + (err.response?.data?.message || err.message));
+                    } finally {
+                      setResetting(false);
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-rose-600/20 flex items-center gap-2"
+                >
+                  {resetting ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Menghapus...</span>
+                    </>
+                  ) : (
+                    <span>Ya, Hapus Semua Data</span>
+                  )}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* Save Button */}
         <div className="flex justify-end pt-4 border-t border-slate-850">

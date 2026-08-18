@@ -69,7 +69,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row pb-24 md:pb-0">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row pb-32 md:pb-0 overflow-x-hidden">
       
       {/* Ambient background glows */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-teal-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
@@ -153,8 +153,8 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children, pag
       {/* ============================================================ */}
       {/* 8. MODERN FLOATING PILL BOTTOM NAVIGATION (Mobile) */}
       {/* ============================================================ */}
-      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex justify-center pointer-events-none">
-        <nav className="pointer-events-auto bg-slate-900/90 border border-slate-800/90 backdrop-blur-2xl rounded-full px-4 py-2 shadow-2xl shadow-slate-950/90 flex items-center justify-between gap-1 w-full max-w-md">
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex justify-center pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">
+        <nav className="pointer-events-auto bg-slate-900/95 border border-slate-800/90 backdrop-blur-2xl rounded-full px-4 py-2 shadow-2xl shadow-slate-950 flex items-center justify-between gap-1 w-full max-w-md">
           
           {/* 1. Home */}
           <NavLink
